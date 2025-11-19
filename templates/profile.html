@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}Профиль - Онлайн-библиотека{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5>Мой профиль</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <img src="/static/images/default-avatar.png" class="rounded-circle" width="100" height="100" alt="Avatar">
+                </div>
+                <h5 id="profileName">Загрузка...</h5>
+                <p class="text-muted" id="profileEmail">Загрузка...</p>
+                <p class="badge bg-primary" id="profileRole">Загрузка...</p>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h5>Статистика</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 id="booksRead">0</h4>
+                        <small class="text-muted">Прочитано</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 id="reviewsCount">0</h4>
+                        <small class="text-muted">Отзывов</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 id="favoritesCount">0</h4>
+                        <small class="text-muted">Избранное</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 id="downloadsCount">0</h4>
+                        <small class="text-muted">Скачано</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <ul class="nav nav-tabs" id="profileTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="favorites-tab" data-bs-toggle="tab" data-bs-target="#favorites" type="button" role="tab">Избранное</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="reading-tab" data-bs-toggle="tab" data-bs-target="#reading" type="button" role="tab">Читаю сейчас</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">История</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">Настройки</button>
+            </li>
+        </ul>
+        
+        <div class="tab-content" id="profileTabsContent">
+            <div class="tab-pane fade show active" id="favorites" role="tabpanel">
+                <div class="mt-3">
+                    <h5>Мои избранные книги</h5>
+                    <div id="favoritesContainer">
+                        <!-- Favorites will be loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="reading" role="tabpanel">
+                <div class="mt-3">
+                    <h5>Читаю сейчас</h5>
+                    <div id="readingContainer">
+                        <!-- Currently reading books will be loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="history" role="tabpanel">
+                <div class="mt-3">
+                    <h5>История чтения</h5>
+                    <div id="historyContainer">
+                        <!-- Reading history will be loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="settings" role="tabpanel">
+                <div class="mt-3">
+                    <h5>Настройки профиля</h5>
+                    <form id="settingsForm">
+                        <div class="mb-3">
+                            <label for="editUsername" class="form-label">Имя пользователя:</label>
+                            <input type="text" class="form-control" id="editUsername">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editEmail" class="form-label">Email:</label>
+                            <input type="email" class="form-control" id="editEmail">
+                        </div>
+                        <div class="mb-3">
+                            <label for="editFullName" class="form-label">Полное имя:</label>
+                            <input type="text" class="form-control" id="editFullName">
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">Новый пароль:</label>
+                            <input type="password" class="form-control" id="newPassword">
+                            <div class="form-text">Оставьте пустым, если не хотите менять пароль</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmNewPassword" class="form-label">Подтвердите новый пароль:</label>
+                            <input type="password" class="form-control" id="confirmNewPassword">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadUserProfile();
+    loadFavorites();
+});
+
+function loadUserProfile() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    fetch('/api/auth/me', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(user => {
+        document.getElementById('profileName').textContent = user.full_name || user.username;
+        document.getElementById('profileEmail').textContent = user.email;
+        document.getElementById('profileRole').textContent = getRoleDisplayName(user.role);
+        
+        // Fill settings form
+        document.getElementById('editUsername').value = user.username;
+        document.getElementById('editEmail').value = user.email;
+        document.getElementById('editFullName').value = user.full_name || '';
+        
+        // Load statistics (placeholder)
+        loadUserStatistics();
+    })
+    .catch(error => {
+        console.error('Error loading profile:', error);
+        if (error.message.includes('401')) {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+    });
+}
+
+function getRoleDisplayName(role) {
+    const roles = {
+        'guest': 'Гость',
+        'reader': 'Читатель',
+        'librarian': 'Библиотекарь',
+        'admin': 'Администратор'
+    };
+    return roles[role] || role;
+}
+
+function loadUserStatistics() {
+    // Placeholder statistics
+    document.getElementById('booksRead').textContent = '0';
+    document.getElementById('reviewsCount').textContent = '0';
+    document.getElementById('favoritesCount').textContent = '0';
+    document.getElementById('downloadsCount').textContent = '0';
+}
+
+function loadFavorites() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    
+    // This would need to be implemented in the API
+    const container = document.getElementById('favoritesContainer');
+    container.innerHTML = '<p class="text-muted">У вас пока нет избранных книг</p>';
+}
+
+// Settings form submission
+document.getElementById('settingsForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmNewPassword').value;
+    
+    if (newPassword && newPassword !== confirmPassword) {
+        alert('Новые пароли не совпадают');
+        return;
+    }
+    
+    const token = localStorage.getItem('token');
+    const updateData = {
+        username: document.getElementById('editUsername').value,
+        email: document.getElementById('editEmail').value,
+        full_name: document.getElementById('editFullName').value
+    };
+    
+    if (newPassword) {
+        updateData.password = newPassword;
+    }
+    
+    // This would need to be implemented in the API
+    alert('Функция обновления профиля будет доступна в следующей версии');
+});
+</script>
+{% endblock %}

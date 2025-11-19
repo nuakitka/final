@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация - Онлайн-библиотека{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="text-center">Регистрация</h3>
+            </div>
+            <div class="card-body">
+                <form id="registerForm">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Имя пользователя:</label>
+                        <input type="text" class="form-control" id="username" required>
+                        <div class="form-text">Уникальное имя для входа в систему</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email:</label>
+                        <input type="email" class="form-control" id="email" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="fullName" class="form-label">Полное имя:</label>
+                        <input type="text" class="form-control" id="fullName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="password" class="form-label">Пароль:</label>
+                        <input type="password" class="form-control" id="password" required>
+                        <div class="form-text">Минимум 8 символов</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirmPassword" class="form-label">Подтвердите пароль:</label>
+                        <input type="password" class="form-control" id="confirmPassword" required>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="agreeTerms" required>
+                        <label class="form-check-label" for="agreeTerms">
+                            Я согласен с <a href="#" onclick="showTerms()">условиями использования</a>
+                        </label>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                    </div>
+                </form>
+                <div class="text-center mt-3">
+                    <p>Уже есть аккаунт? <a href="/login">Войти</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('registerForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const password = document.getElementById('password').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    if (password !== confirmPassword) {
+        alert('Пароли не совпадают');
+        return;
+    }
+    
+    if (password.length < 8) {
+        alert('Пароль должен содержать минимум 8 символов');
+        return;
+    }
+    
+    const registerData = {
+        username: document.getElementById('username').value,
+        email: document.getElementById('email').value,
+        full_name: document.getElementById('fullName').value,
+        password: password
+    };
+    
+    fetch('/api/auth/register', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(registerData)
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            return response.json().then(data => {
+                throw new Error(data.detail || 'Ошибка регистрации');
+            });
+        }
+    })
+    .then(data => {
+        alert('Регистрация прошла успешно! Теперь вы можете войти в систему.');
+        window.location.href = '/login';
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert(error.message);
+    });
+});
+
+function showTerms() {
+    alert('Условия использования:\n\n1. Используйте библиотеку только в законных целях\n2. Уважайте авторские права\n3. Не распространяйте контент без разрешения\n4. Соблюдайте правила поведения в сообществе');
+}
+</script>
+{% endblock %}

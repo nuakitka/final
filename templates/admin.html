@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+
+{% block title %}Админ панель - Онлайн-библиотека{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h5>Меню администратора</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="#" class="list-group-item list-group-item-action active" onclick="showSection('dashboard')">
+                    <i class="fas fa-tachometer-alt"></i> Панель управления
+                </a>
+                <a href="#" class="list-group-item list-group-item-action" onclick="showSection('books')">
+                    <i class="fas fa-book"></i> Управление книгами
+                </a>
+                <a href="#" class="list-group-item list-group-item-action" onclick="showSection('users')">
+                    <i class="fas fa-users"></i> Управление пользователями
+                </a>
+                <a href="#" class="list-group-item list-group-item-action" onclick="showSection('categories')">
+                    <i class="fas fa-tags"></i> Категории
+                </a>
+                <a href="#" class="list-group-item list-group-item-action" onclick="showSection('authors')">
+                    <i class="fas fa-user-edit"></i> Авторы
+                </a>
+                <a href="#" class="list-group-item list-group-item-action" onclick="showSection('reviews')">
+                    <i class="fas fa-comments"></i> Модерация отзывов
+                </a>
+                <a href="#" class="list-group-item list-group-item-action" onclick="showSection('settings')">
+                    <i class="fas fa-cog"></i> Настройки системы
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <!-- Dashboard Section -->
+        <div id="dashboard-section" class="admin-section">
+            <h2>Панель управления</h2>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body">
+                            <h4 id="totalBooks">0</h4>
+                            <p>Всего книг</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <h4 id="totalUsers">0</h4>
+                            <p>Пользователей</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body">
+                            <h4 id="pendingReviews">0</h4>
+                            <p>Отзывов на модерации</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <h4 id="totalDownloads">0</h4>
+                            <p>Всего скачиваний</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Последние действия</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">История действий будет доступна в следующей версии</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Популярные книги</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted">Статистика популярности будет доступна в следующей версии</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Books Management Section -->
+        <div id="books-section" class="admin-section" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>Управление книгами</h2>
+                <button class="btn btn-primary" onclick="showAddBookModal()">
+                    <i class="fas fa-plus"></i> Добавить книгу
+                </button>
+            </div>
+            
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Название</th>
+                            <th>Авторы</th>
+                            <th>Год</th>
+                            <th>Рейтинг</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="booksTableBody">
+                        <!-- Books will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Users Management Section -->
+        <div id="users-section" class="admin-section" style="display: none;">
+            <h2>Управление пользователями</h2>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Имя пользователя</th>
+                            <th>Email</th>
+                            <th>Роль</th>
+                            <th>Статус</th>
+                            <th>Дата регистрации</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Users will be loaded dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Other sections would be similar -->
+        <div id="categories-section" class="admin-section" style="display: none;">
+            <h2>Управление категориями</h2>
+            <p class="text-muted">Функционал будет доступен в следующей версии</p>
+        </div>
+        
+        <div id="authors-section" class="admin-section" style="display: none;">
+            <h2>Управление авторами</h2>
+            <p class="text-muted">Функционал будет доступен в следующей версии</p>
+        </div>
+        
+        <div id="reviews-section" class="admin-section" style="display: none;">
+            <h2>Модерация отзывов</h2>
+            <p class="text-muted">Функционал будет доступен в следующей версии</p>
+        </div>
+        
+        <div id="settings-section" class="admin-section" style="display: none;">
+            <h2>Настройки системы</h2>
+            <p class="text-muted">Функционал будет доступен в следующей версии</p>
+        </div>
+    </div>
+</div>
+
+<!-- Add Book Modal -->
+<div class="modal fade" id="addBookModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить книгу</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBookForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="bookTitle" class="form-label">Название:</label>
+                                <input type="text" class="form-control" id="bookTitle" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="bookSubtitle" class="form-label">Подзаголовок:</label>
+                                <input type="text" class="form-control" id="bookSubtitle">
+                            </div>
+                            <div class="mb-3">
+                                <label for="bookISBN" class="form-label">ISBN:</label>
+                                <input type="text" class="form-control" id="bookISBN">
+                            </div>
+                            <div class="mb-3">
+                                <label for="bookYear" class="form-label">Год издания:</label>
+                                <input type="number" class="form-control" id="bookYear">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="bookLanguage" class="form-label">Язык:</label>
+                                <select class="form-select" id="bookLanguage">
+                                    <option value="ru">Русский</option>
+                                    <option value="en">English</option>
+                                    <option value="de">Deutsch</option>
+                                    <option value="fr">Français</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="bookPages" class="form-label">Страниц:</label>
+                                <input type="number" class="form-control" id="bookPages">
+                            </div>
+                            <div class="mb-3">
+                                <label for="bookFormat" class="form-label">Формат:</label>
+                                <select class="form-select" id="bookFormat">
+                                    <option value="PDF">PDF</option>
+                                    <option value="EPUB">EPUB</option>
+                                    <option value="MOBI">MOBI</option>
+                                    <option value="DJVU">DJVU</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="bookDescription" class="form-label">Описание:</label>
+                        <textarea class="form-control" id="bookDescription" rows="4"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="addBook()">Добавить книгу</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    checkAdminAccess();
+    loadDashboardData();
+});
+
+function checkAdminAccess() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = '/login';
+        return;
+    }
+    
+    fetch('/api/auth/me', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        } else {
+            throw new Error('Unauthorized');
+        }
+    })
+    .then(user => {
+        if (user.role !== 'admin') {
+            alert('Доступ запрещен. Требуются права администратора.');
+            window.location.href = '/';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        window.location.href = '/login';
+    });
+}
+
+function showSection(section) {
+    // Hide all sections
+    document.querySelectorAll('.admin-section').forEach(sec => {
+        sec.style.display = 'none';
+    });
+    
+    // Remove active class from all menu items
+    document.querySelectorAll('.list-group-item').forEach(item => {
+        item.classList.remove('active');
+    });
+    
+    // Show selected section
+    document.getElementById(section + '-section').style.display = 'block';
+    
+    // Add active class to clicked menu item
+    event.target.classList.add('active');
+    
+    // Load section-specific data
+    if (section === 'books') {
+        loadBooks();
+    } else if (section === 'users') {
+        loadUsers();
+    }
+}
+
+function loadDashboardData() {
+    // Load dashboard statistics
+    document.getElementById('totalBooks').textContent = '0';
+    document.getElementById('totalUsers').textContent = '0';
+    document.getElementById('pendingReviews').textContent = '0';
+    document.getElementById('totalDownloads').textContent = '0';
+}
+
+function loadBooks() {
+    const token = localStorage.getItem('token');
+    fetch('/api/books', {
+        headers: {
+            'Authorization': `Bearer ${token}`
+        }
+    })
+    .then(response => response.json())
+    .then(books => {
+        const tbody = document.getElementById('booksTableBody');
+        tbody.innerHTML = books.map(book => `
+            <tr>
+                <td>${book.id}</td>
+                <td>${book.title}</td>
+                <td>${book.authors?.map(a => a.first_name + ' ' + a.last_name).join(', ') || 'N/A'}</td>
+                <td>${book.publication_year || 'N/A'}</td>
+                <td>${book.rating || 0}</td>
+                <td>
+                    <span class="badge ${book.is_active ? 'bg-success' : 'bg-danger'}">
+                        ${book.is_active ? 'Активна' : 'Неактивна'}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-warning" onclick="editBook(${book.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteBook(${book.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    })
+    .catch(error => {
+        console.error('Error loading books:', error);
+    });
+}
+
+function loadUsers() {
+    // This would need to be implemented in the API
+    const tbody = document.getElementById('usersTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Функционал будет доступен в следующей версии</td></tr>';
+}
+
+function showAddBookModal() {
+    const modal = new bootstrap.Modal(document.getElementById('addBookModal'));
+    modal.show();
+}
+
+function addBook() {
+    const token = localStorage.getItem('token');
+    const bookData = {
+        title: document.getElementById('bookTitle').value,
+        subtitle: document.getElementById('bookSubtitle').value,
+        isbn: document.getElementById('bookISBN').value,
+        publication_year: parseInt(document.getElementById('bookYear').value) || null,
+        language: document.getElementById('bookLanguage').value,
+        pages: parseInt(document.getElementById('bookPages').value) || null,
+        description: document.getElementById('bookDescription').value
+    };
+    
+    fetch('/api/books', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(bookData)
+    })
+    .then(response => {
+        if (response.ok) {
+            alert('Книга успешно добавлена!');
+            bootstrap.Modal.getInstance(document.getElementById('addBookModal')).hide();
+            document.getElementById('addBookForm').reset();
+            loadBooks();
+        } else {
+            return response.json().then(data => {
+                throw new Error(data.detail || 'Ошибка при добавлении книги');
+            });
+        }
+    })
+    .catch(error => {
+        alert(error.message);
+    });
+}
+
+function editBook(bookId) {
+    alert('Функция редактирования будет доступна в следующей версии');
+}
+
+function deleteBook(bookId) {
+    if (confirm('Вы уверены, что хотите удалить эту книгу?')) {
+        const token = localStorage.getItem('token');
+        fetch(`/api/books/${bookId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                alert('Книга успешно удалена!');
+                loadBooks();
+            } else {
+                alert('Ошибка при удалении книги');
+            }
+        })
+        .catch(error => {
+            alert('Ошибка при удалении книги');
+        });
+    }
+}
+</script>
+{% endblock %}
