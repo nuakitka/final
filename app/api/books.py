@@ -116,8 +116,23 @@ def create_review_endpoint(
     
     print(f"✅ Книга найдена: {book.title}")
     
+    # Проверяем, что пользователь действительно читал книгу (есть завершённая сессия чтения)
+    from app.models.book import Review, ReadingSession
+
+    has_completed_session = db.query(ReadingSession).filter(
+        ReadingSession.book_id == book_id,
+        ReadingSession.user_id == current_user.id,
+        ReadingSession.is_completed == True,
+    ).first()
+
+    if not has_completed_session:
+        print(f"⚠️  Пользователь {current_user.username} пытается оставить отзыв без завершённого чтения книги {book_id}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Оставлять отзывы можно только после прочтения книги"
+        )
+
     # Проверяем, не оставлял ли уже пользователь рецензию на эту книгу
-    from app.models.book import Review
     existing_review = db.query(Review).filter(
         Review.book_id == book_id,
         Review.user_id == current_user.id

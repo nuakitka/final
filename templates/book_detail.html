@@ -74,9 +74,9 @@
                     {% endif %}
                     
                     {% if book %}
-                        <button class="btn btn-primary w-100 mb-2" onclick="startReading()">
+                        <a href="/book/{{ book.id }}?read=true" class="btn btn-primary w-100 mb-2">
                             <i class="bi bi-book"></i> Читать онлайн
-                        </button>
+                        </a>
                     {% endif %}
                 </div>
             </div>
@@ -512,15 +512,6 @@
                 alertDiv.remove();
             }
         }, 5000);
-    }
-    
-    // Вспомогательные функции
-    function startReading() {
-        if (!bookId) {
-            alert('ID книги не определен');
-            return;
-        }
-        alert('Функция чтения онлайн будет реализована позже. ID книги: ' + bookId);
     }
     
     // Инициализация

@@ -3,6 +3,7 @@ from sqlalchemy import func
 from app.models.book import ReadingSession, Review, Book
 from app.models.user import User
 
+
 def get_user_reading_stats(db: Session, user_id: int):
     """Получить статистику чтения пользователя"""
     try:
@@ -47,6 +48,61 @@ def get_user_reading_stats(db: Session, user_id: int):
             "favorites_count": 0,
             "reading_time_hours": 0
         }
+
+
+def ensure_reading_session(db: Session, user_id: int, book_id: int) -> ReadingSession:
+    """Убедиться, что для пользователя и книги есть активная сессия чтения.
+
+    Если активной сессии (is_completed == False) нет, создаём новую и возвращаем её.
+    """
+    try:
+        session = db.query(ReadingSession).filter(
+            ReadingSession.user_id == user_id,
+            ReadingSession.book_id == book_id,
+            ReadingSession.is_completed == False,
+        ).first()
+
+        if not session:
+            session = ReadingSession(
+                user_id=user_id,
+                book_id=book_id,
+                pages_read=0,
+                progress_percentage=0,
+                is_completed=False,
+            )
+            db.add(session)
+            db.commit()
+            db.refresh(session)
+
+        return session
+    except Exception as e:
+        print(f"Ошибка в ensure_reading_session: {e}")
+        db.rollback()
+        raise
+
+
+def update_reading_progress(
+    db: Session,
+    user_id: int,
+    book_id: int,
+    progress_percentage: int,
+    pages_read: int | None = None,
+    is_completed: bool | None = None,
+) -> ReadingSession:
+    """Обновить прогресс чтения книги для пользователя."""
+    session = ensure_reading_session(db, user_id, book_id)
+
+    session.progress_percentage = max(0, min(100, progress_percentage))
+    if pages_read is not None:
+        session.pages_read = max(0, pages_read)
+    if is_completed is not None:
+        session.is_completed = is_completed
+
+    db.add(session)
+    db.commit()
+    db.refresh(session)
+    return session
+
 
 def get_user_reading_sessions(db: Session, user_id: int, active_only: bool = False):
     """Получить сессии чтения пользователя"""

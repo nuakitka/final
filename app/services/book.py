@@ -54,7 +54,9 @@ def create_book(db: Session, book: BookCreate) -> Book:
         description=book.description,
         publication_year=book.publication_year,
         language=book.language,
-        pages=book.pages
+        pages=book.pages,
+        file_url=book.file_url,
+        cover_url=book.cover_url
     )
     
     # Add categories

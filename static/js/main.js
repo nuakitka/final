@@ -19,6 +19,130 @@ document.addEventListener('DOMContentLoaded', function() {
     if (window.location.pathname === '/' || window.location.pathname === '/index') {
         loadHomePageContent();
     }
+
+// Load active reading sessions for home page
+async function loadActiveBooksHome() {
+    const section = document.getElementById('activeBooksSection');
+    const container = document.getElementById('activeBooksList');
+
+    if (!section || !container) return;
+
+    // Показываем блок только для авторизованных
+    if (!currentUser) {
+        section.style.display = 'none';
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/users/me/reading-sessions?active=true', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            section.style.display = 'none';
+            return;
+        }
+
+        const data = await response.json();
+        const sessions = Array.isArray(data.sessions) ? data.sessions : data; // поддержка обоих форматов
+
+        if (!sessions || sessions.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+
+        container.innerHTML = `
+            <div class="list-group">
+                ${sessions.slice(0, 5).map(session => `
+                    <button type="button" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center" onclick="window.location.href='/book/${session.book.id}?read=true'">
+                        <div>
+                            <div class="fw-semibold">${session.book.title}</div>
+                            <small class="text-muted">Прогресс: ${session.progress_percentage || 0}%</small>
+                        </div>
+                        <span class="badge bg-primary rounded-pill">Продолжить</span>
+                    </button>
+                `).join('')}
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading active books for home:', error);
+        section.style.display = 'none';
+    }
+}
+
+// Load recently read books for home page
+async function loadRecentBooksHome() {
+    const section = document.getElementById('recentBooksSection');
+    const container = document.getElementById('recentBooksList');
+
+    if (!section || !container) return;
+
+    if (!currentUser) {
+        section.style.display = 'none';
+        return;
+    }
+
+    try {
+        // Берём последние сессии (все, не только активные)
+        const response = await fetch('/api/users/me/reading-sessions?active=false&limit=8', {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            section.style.display = 'none';
+            return;
+        }
+
+        const data = await response.json();
+        const sessions = Array.isArray(data.sessions) ? data.sessions : data;
+
+        if (!sessions || sessions.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        // Уникальные книги, последние по времени
+        const seen = new Set();
+        const recentBooks = [];
+        for (const s of sessions) {
+            const b = s.book;
+            if (!b || !b.id) continue;
+            if (!seen.has(b.id)) {
+                seen.add(b.id);
+                recentBooks.push(b);
+            }
+            if (recentBooks.length >= 6) break;
+        }
+
+        if (recentBooks.length === 0) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+
+        container.innerHTML = recentBooks.map(book => `
+            <div class="col-md-2 mb-3">
+                <div class="card h-100 book-card" style="cursor: pointer;" onclick="window.location.href='/book/${book.id}'">
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 160px;">
+                        ${book.cover_url 
+                            ? `<img src="${book.cover_url}" class="img-fluid" style="max-height: 100%;" alt="${book.title}">`
+                            : `<span class="text-muted">Обложка книги</span>`}
+                    </div>
+                    <div class="card-body p-2">
+                        <div class="small fw-semibold" style="height: 2.5rem; overflow: hidden;">${book.title}</div>
+                        ${book.author ? `<div class="small text-muted">${book.author}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading recent books for home:', error);
+        section.style.display = 'none';
+    }
+}
 });
 
 // Check authentication status
@@ -184,6 +308,8 @@ function loadHomePageContent() {
     loadPopularCategories();
     loadNewArrivals();
     loadPopularBooks();
+    loadActiveBooksHome();
+    loadRecentBooksHome();
 }
 
 // Load popular categories
@@ -245,24 +371,34 @@ function loadPopularBooks() {
 // Create book card HTML
 function createBookCard(book) {
     const rating = book.rating || 0;
-    const stars = Array(5).fill(0).map((_, i) => 
-        i < Math.floor(rating) ? 'fas fa-star' : 'far fa-star'
-    ).join(' ');
+    const fullStars = '★'.repeat(Math.min(5, Math.round(rating)));
+    const emptyStars = '☆'.repeat(5 - fullStars.length);
+    const coverUrl = book.cover_url;
     
     return `
         <div class="col-md-4 mb-4">
             <div class="card h-100 book-card">
-                <div class="book-cover-placeholder">
-                    <i class="fas fa-book"></i>
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
+                     style="height: 200px; cursor: pointer;" 
+                     onclick="window.location.href='/book/${book.id}'">
+                    ${coverUrl 
+                        ? `<img src="${coverUrl}" class="img-fluid" style="max-height: 100%;" alt="${book.title}">` 
+                        : `<span class="text-muted">Обложка книги</span>`
+                    }
                 </div>
                 <div class="card-body">
                     <h5 class="card-title">${book.title}</h5>
-                    <p class="card-text text-muted">
+                    <p class="card-text text-muted mb-1">
                         ${book.authors?.map(a => a.first_name + ' ' + a.last_name).join(', ') || 'Неизвестный автор'}
                     </p>
-                    <div class="mb-2">
-                        <span class="text-warning">${stars}</span>
-                        <small class="text-muted">(${rating.toFixed(1)})</small>
+                    <p class="card-text text-muted small">
+                        ${book.categories && book.categories.length
+                            ? book.categories.map(c => c.name).join(', ')
+                            : 'Категории не указаны'}
+                    </p>
+                    <div class="mb-2 d-flex align-items-center">
+                        <span class="text-warning me-1">${fullStars}${emptyStars}</span>
+                        <small class="text-muted">${rating ? rating.toFixed(1) : 'Нет оценок'}</small>
                     </div>
                     <p class="card-text">${book.description ? book.description.substring(0, 100) + '...' : 'Описание отсутствует'}</p>
                     <div class="d-flex justify-content-between align-items-center">

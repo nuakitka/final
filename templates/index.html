@@ -8,41 +8,28 @@
     <p class="lead">Откройте для себя тысячи книг различных жанров. Читайте онлайн или скачивайте любимые произведения.</p>
     <hr class="my-4">
     <p>Присоединяйтесь к нашему сообществу читателей уже сегодня.</p>
-    <a class="btn btn-primary btn-lg" href="/register" role="button">Начать чтение</a>
+    <a class="btn btn-primary btn-lg" href="/catalog" role="button">Начать чтение</a>
 </div>
 
-<section class="featured-books mt-5">
-    <h2 class="mb-4">Популярные книги</h2>
-    <div class="row row-cols-1 row-cols-md-3 g-4">
-        {% for book in featured_books %}
-        <div class="col">
-            <div class="card h-100">
-                <img src="{{ book.cover_url }}" class="card-img-top" alt="{{ book.title }}">
-                <div class="card-body">
-                    <h5 class="card-title">{{ book.title }}</h5>
-                    <p class="card-text">{{ book.author }}</p>
-                    <a href="/book/{{ book.id }}" class="btn btn-outline-primary">Подробнее</a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+<!-- Активные и недавно прочитанные книги (для авторизованных пользователей) -->
+<section class="mt-5" id="activeBooksSection" style="display: none;">
+    <h2 class="mb-4">Вы читаете сейчас</h2>
+    <div id="activeBooksList">
+        <!-- Заполняется через loadActiveBooksHome() -->
     </div>
 </section>
 
-<section class="categories mt-5">
-    <h2 class="mb-4">Категории</h2>
-    <div class="row">
-        {% for category in categories %}
-        <div class="col-md-3 mb-4">
-            <div class="card">
-                <div class="card-body text-center">
-                    <h5 class="card-title">{{ category.name }}</h5>
-                    <p class="card-text">{{ category.book_count }} книг</p>
-                    <a href="/catalog?category={{ category.id }}" class="btn btn-sm btn-outline-secondary">Смотреть все</a>
-                </div>
-            </div>
-        </div>
-        {% endfor %}
+<section class="mt-4" id="recentBooksSection" style="display: none;">
+    <h2 class="mb-4">Недавно прочитанные</h2>
+    <div id="recentBooksList" class="row">
+        <!-- Заполняется через loadRecentBooksHome() -->
+    </div>
+</section>
+
+<section class="mt-5">
+    <h2 class="mb-4">Популярные книги</h2>
+    <div class="row" id="popularBooks">
+        <!-- Книги будут загружены динамически через loadPopularBooks() -->
     </div>
 </section>
 

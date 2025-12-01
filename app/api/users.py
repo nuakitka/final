@@ -1,14 +1,25 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
 from sqlalchemy.orm import Session
 from typing import List, Optional
+from pydantic import BaseModel
 from app.models import get_db
 from app.schemas.user import User, UserUpdate
 from app.schemas.book import Book
 from app.services.auth import get_user_by_username, get_users
 from app.services.book import get_book
-from app.services.user_stats import get_user_reading_stats, get_user_reading_sessions
+from app.services.user_stats import (
+    get_user_reading_stats,
+    get_user_reading_sessions,
+    update_reading_progress,
+)
 
 router = APIRouter(tags=["users"])
+
+
+class ReadingProgress(BaseModel):
+    progress_percentage: int
+    pages_read: Optional[int] = None
+    is_completed: Optional[bool] = None
 
 # Простая проверка аутентификации через request.state.user
 def get_current_user_from_request(request: Request):
@@ -73,6 +84,42 @@ def get_my_reading_sessions(
         "total": len(sessions),
         "skip": skip,
         "limit": limit
+    }
+
+
+@router.post("/me/reading-sessions/{book_id}/progress")
+def update_my_reading_progress(
+    book_id: int,
+    data: ReadingProgress,
+    request: Request,
+    db: Session = Depends(get_db),
+):
+    """Обновить прогресс чтения книги для текущего пользователя."""
+    user = get_current_active_user(request)
+
+    user_obj = get_user_by_username(db, user.get("username"))
+    if not user_obj:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+
+    book = get_book(db, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Книга не найдена")
+
+    session = update_reading_progress(
+        db,
+        user_obj.id,
+        book_id,
+        data.progress_percentage,
+        pages_read=data.pages_read,
+        is_completed=data.is_completed,
+    )
+
+    return {
+        "id": session.id,
+        "book_id": session.book_id,
+        "progress_percentage": session.progress_percentage,
+        "pages_read": session.pages_read,
+        "is_completed": session.is_completed,
     }
 
 @router.get("/", response_model=List[User])

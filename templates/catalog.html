@@ -99,7 +99,7 @@
 
 {% block extra_js %}
 <script>
-let currentPage = 1;
+var currentPage = 1;
 const booksPerPage = 12;
 let favoriteBookIds = new Set();
 
@@ -109,9 +109,25 @@ async function loadFilters() {
         // Загрузка категорий
         const categoriesResponse = await fetch('/api/books/categories');
         if (categoriesResponse.ok) {
-            const categories = await categoriesResponse.json();
+            let categories = await categoriesResponse.json();
             const categorySelect = document.getElementById('categoryFilter');
-            
+
+            // Убираем дубликаты и сортируем по алфавиту
+            const uniqueCategoriesMap = new Map();
+            categories.forEach(cat => {
+                if (!uniqueCategoriesMap.has(cat.id)) {
+                    uniqueCategoriesMap.set(cat.id, cat);
+                }
+            });
+
+            categories = Array.from(uniqueCategoriesMap.values()).sort((a, b) => {
+                const nameA = (a.name || '').toLowerCase();
+                const nameB = (b.name || '').toLowerCase();
+                if (nameA < nameB) return -1;
+                if (nameA > nameB) return 1;
+                return 0;
+            });
+
             categories.forEach(category => {
                 const option = document.createElement('option');
                 option.value = category.id;
@@ -123,9 +139,29 @@ async function loadFilters() {
         // Загрузка авторов
         const authorsResponse = await fetch('/api/books/authors');
         if (authorsResponse.ok) {
-            const authors = await authorsResponse.json();
+            let authors = await authorsResponse.json();
             const authorSelect = document.getElementById('authorFilter');
-            
+
+            // Убираем дубликаты и сортируем по алфавиту (фамилия, потом имя)
+            const uniqueAuthorsMap = new Map();
+            authors.forEach(a => {
+                if (!uniqueAuthorsMap.has(a.id)) {
+                    uniqueAuthorsMap.set(a.id, a);
+                }
+            });
+
+            authors = Array.from(uniqueAuthorsMap.values()).sort((a, b) => {
+                const lastA = (a.last_name || '').toLowerCase();
+                const lastB = (b.last_name || '').toLowerCase();
+                if (lastA < lastB) return -1;
+                if (lastA > lastB) return 1;
+                const firstA = (a.first_name || '').toLowerCase();
+                const firstB = (b.first_name || '').toLowerCase();
+                if (firstA < firstB) return -1;
+                if (firstA > firstB) return 1;
+                return 0;
+            });
+
             authors.forEach(author => {
                 const option = document.createElement('option');
                 option.value = author.id;
@@ -227,9 +263,15 @@ function displayBooks(books) {
                     </div>
                     <div class="card-body">
                         <h6 class="card-title" style="height: 3rem; overflow: hidden;">${book.title}</h6>
-                        <p class="card-text small text-muted">
+                        <p class="card-text small text-muted mb-1">
                             ${book.authors.map(author => `${author.first_name} ${author.last_name}`).join(', ')}
                         </p>
+                        <p class="card-text small text-muted">
+                            ${book.categories && book.categories.length
+                                ? book.categories.map(c => c.name).join(', ')
+                                : 'Категории не указаны'}
+                        </p>
+
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <small class="text-muted">${book.publication_year || 'Не указан'}</small>
                             <div class="text-warning small d-flex align-items-center">

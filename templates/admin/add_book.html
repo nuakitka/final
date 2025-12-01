@@ -43,7 +43,17 @@
                             <select class="form-select" id="authors" name="author_ids" multiple required>
                                 <option value="">Загрузка авторов...</option>
                             </select>
-                            <div class="form-text">Выберите авторов (Ctrl+клик для множественного выбора)</div>
+                            <div class="d-flex justify-content-between align-items-center mt-1 flex-wrap gap-1">
+                                <div class="form-text">Выберите авторов (Ctrl+клик для множественного выбора)</div>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="removeSelectedAuthors()">
+                                        Убрать из книги
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" onclick="deleteSelectedAuthorsPermanently()">
+                                        Удалить из системы
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Добавить нового автора</label>
@@ -64,7 +74,17 @@
                             <select class="form-select" id="categories" name="category_ids" multiple>
                                 <option value="">Загрузка категорий...</option>
                             </select>
-                            <div class="form-text">Выберите категории</div>
+                            <div class="d-flex justify-content-between align-items-center mt-1 flex-wrap gap-1">
+                                <div class="form-text">Выберите категории</div>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-secondary" onclick="removeSelectedCategories()">
+                                        Убрать из книги
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" onclick="deleteSelectedCategoriesPermanently()">
+                                        Удалить из системы
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label">Добавить новую категорию</label>
@@ -109,17 +129,29 @@
                         <textarea class="form-control" id="description" name="description" rows="4"></textarea>
                     </div>
 
-                    <!-- Ссылки на файлы -->
+                    <!-- Файлы и ссылки -->
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label for="file_url" class="form-label">Ссылка на файл книги</label>
-                            <input type="text" class="form-control" id="file_url" name="file_url" placeholder="например: /static/books/test.pdf">
-                            <div class="form-text">PDF, EPUB, или другой формат</div>
+                            <label for="file_url" class="form-label">Файл книги</label>
+                            <input type="text" class="form-control mb-2" id="file_url" name="file_url" placeholder="например: /static/books/test.pdf">
+                            <div class="input-group">
+                                <input type="file" class="form-control" id="file_upload" accept=".pdf,.epub,.fb2,.mobi,.txt">
+                                <button type="button" class="btn btn-outline-secondary" onclick="uploadBookFile()">
+                                    Загрузить
+                                </button>
+                            </div>
+                            <div class="form-text">Можно вставить готовый URL или загрузить файл (PDF/EPUB и др.).</div>
                         </div>
                         <div class="col-md-6">
-                            <label for="cover_url" class="form-label">Ссылка на обложку</label>
-                            <input type="text" class="form-control" id="cover_url" name="cover_url" placeholder="например: /static/covers/test.jpg">
-                            <div class="form-text">URL изображения обложки</div>
+                            <label for="cover_url" class="form-label">Обложка</label>
+                            <input type="text" class="form-control mb-2" id="cover_url" name="cover_url" placeholder="например: /static/covers/test.jpg">
+                            <div class="input-group">
+                                <input type="file" class="form-control" id="cover_upload" accept="image/*">
+                                <button type="button" class="btn btn-outline-secondary" onclick="uploadCoverImage()">
+                                    Загрузить
+                                </button>
+                            </div>
+                            <div class="form-text">Можно вставить готовый URL или загрузить изображение.</div>
                         </div>
                     </div>
 
@@ -171,8 +203,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    if (userRole !== 'admin') {
-        showMessage('❌ Требуются права администратора для доступа к этой странице.', 'danger');
+    if (userRole !== 'admin' && userRole !== 'librarian') {
+        showMessage('❌ Требуются права администратора или библиотекаря для доступа к этой странице.', 'danger');
         setTimeout(() => window.location.href = '/admin', 2000);
         return;
     }
@@ -252,6 +284,19 @@ async function loadAuthors() {
         const response = await fetch('/api/books/authors');
         if (response.ok) {
             authorsList = await response.json();
+            // Сортировка авторов по алфавиту: сначала по фамилии, затем по имени
+            authorsList.sort((a, b) => {
+                const lastA = (a.last_name || '').toLowerCase();
+                const lastB = (b.last_name || '').toLowerCase();
+                if (lastA < lastB) return -1;
+                if (lastA > lastB) return 1;
+                const firstA = (a.first_name || '').toLowerCase();
+                const firstB = (b.first_name || '').toLowerCase();
+                if (firstA < firstB) return -1;
+                if (firstA > firstB) return 1;
+                return 0;
+            });
+
             const select = document.getElementById('authors');
             
             // Очищаем опции загрузки
@@ -283,6 +328,15 @@ async function loadCategories() {
         const response = await fetch('/api/books/categories');
         if (response.ok) {
             categoriesList = await response.json();
+            // Сортировка категорий по алфавиту по имени
+            categoriesList.sort((a, b) => {
+                const nameA = (a.name || '').toLowerCase();
+                const nameB = (b.name || '').toLowerCase();
+                if (nameA < nameB) return -1;
+                if (nameA > nameB) return 1;
+                return 0;
+            });
+
             const select = document.getElementById('categories');
             
             // Очищаем опции загрузки
@@ -307,8 +361,8 @@ async function loadCategories() {
     }
 }
 
-// Добавление нового автора (временно в массиве)
-function addNewAuthor() {
+// Добавление нового автора (через админский API)
+async function addNewAuthor() {
     const firstName = document.getElementById('newAuthorFirstName').value.trim();
     const lastName = document.getElementById('newAuthorLastName').value.trim();
     
@@ -316,62 +370,143 @@ function addNewAuthor() {
         showMessage('Введите имя и фамилию автора', 'warning');
         return;
     }
-    
-    // Создаем временный объект автора
-    const tempId = `temp_${Date.now()}`;
-    const newAuthor = {
-        id: tempId,
-        first_name: firstName,
-        last_name: lastName
-    };
-    
-    tempAuthors.push(newAuthor);
-    
-    // Добавляем в select
-    const select = document.getElementById('authors');
-    const option = document.createElement('option');
-    option.value = tempId;
-    option.textContent = `${firstName} ${lastName}`;
-    option.selected = true;
-    select.appendChild(option);
-    
-    // Очищаем поля ввода
-    document.getElementById('newAuthorFirstName').value = '';
-    document.getElementById('newAuthorLastName').value = '';
-    
-    showMessage(`Автор "${firstName} ${lastName}" добавлен`, 'success');
+
+    try {
+        const response = await fetch('/api/admin/authors?first_name=' + encodeURIComponent(firstName) + '&last_name=' + encodeURIComponent(lastName), {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const msg = errorData.detail || 'Не удалось создать автора';
+            showMessage(`❌ Ошибка создания автора: ${msg}`, 'danger');
+            return;
+        }
+
+        const author = await response.json();
+
+        // Добавляем в select с реальным ID
+        const select = document.getElementById('authors');
+        const option = document.createElement('option');
+        option.value = author.id;
+        option.textContent = `${author.first_name} ${author.last_name}`;
+        option.selected = true;
+        select.appendChild(option);
+
+        // Очищаем поля ввода
+        document.getElementById('newAuthorFirstName').value = '';
+        document.getElementById('newAuthorLastName').value = '';
+
+        showMessage(`Автор "${author.first_name} ${author.last_name}" создан и добавлен`, 'success');
+    } catch (error) {
+        console.error('Ошибка создания автора:', error);
+        showMessage('❌ Ошибка сети при создании автора', 'danger');
+    }
 }
 
-// Добавление новой категории (временно в массиве)
-function addNewCategory() {
+// Добавление новой категории (через админский API)
+async function addNewCategory() {
     const name = document.getElementById('newCategoryName').value.trim();
     
     if (!name) {
         showMessage('Введите название категории', 'warning');
         return;
     }
-    
-    // Создаем временный объект категории
-    const tempId = `temp_${Date.now()}`;
-    const newCategory = {
-        id: tempId,
-        name: name
-    };
-    
-    tempCategories.push(newCategory);
-    
-    // Добавляем в select
+
+    try {
+        const response = await fetch('/api/admin/categories?name=' + encodeURIComponent(name), {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const msg = errorData.detail || 'Не удалось создать категорию';
+            showMessage(`❌ Ошибка создания категории: ${msg}`, 'danger');
+            return;
+        }
+
+        const category = await response.json();
+
+        const select = document.getElementById('categories');
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = category.name;
+        option.selected = true;
+        select.appendChild(option);
+
+        document.getElementById('newCategoryName').value = '';
+
+        showMessage(`Категория "${category.name}" создана и добавлена`, 'success');
+    } catch (error) {
+        console.error('Ошибка создания категории:', error);
+        showMessage('❌ Ошибка сети при создании категории', 'danger');
+    }
+}
+
+// Удаление выбранных авторов из списка (только на форме)
+function removeSelectedAuthors() {
+    const select = document.getElementById('authors');
+    if (!select) return;
+    const selected = Array.from(select.selectedOptions);
+    if (selected.length === 0) {
+        showMessage('Нет выбранных авторов для удаления', 'warning');
+        return;
+    }
+    selected.forEach(opt => opt.remove());
+}
+
+// Полное удаление выбранных авторов из системы (если не привязаны к книгам)
+async function deleteSelectedAuthorsPermanently() {
+    const select = document.getElementById('authors');
+    if (!select) return;
+    const selected = Array.from(select.selectedOptions);
+    if (selected.length === 0) {
+        showMessage('Нет выбранных авторов для удаления', 'warning');
+        return;
+    }
+
+    if (!confirm('Вы уверены, что хотите удалить выбранных авторов из системы? Это действие нельзя отменить.')) {
+        return;
+    }
+
+    for (const opt of selected) {
+        const id = parseInt(opt.value);
+        if (!id) {
+            // На всякий случай игнорируем некорректные значения
+            continue;
+        }
+        try {
+            const response = await fetch(`/api/admin/authors/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                opt.remove();
+            } else {
+                const errorData = await response.json().catch(() => ({}));
+                const msg = errorData.detail || 'Не удалось удалить автора';
+                showMessage(`❌ Ошибка удаления автора ID ${id}: ${msg}`, 'danger');
+            }
+        } catch (error) {
+            console.error('Ошибка удаления автора:', error);
+            showMessage(`❌ Ошибка сети при удалении автора ID ${id}`, 'danger');
+        }
+    }
+}
+
+// Удаление выбранных категорий из списка (только на форме)
+function removeSelectedCategories() {
     const select = document.getElementById('categories');
-    const option = document.createElement('option');
-    option.value = tempId;
-    option.textContent = name;
-    option.selected = true;
-    select.appendChild(option);
-    
-    // Очищаем поле ввода
-    document.getElementById('newCategoryName').value = '';
-    
-    showMessage(`Категория "${name}" добавлена`, 'success');
+    if (!select) return;
+    const selected = Array.from(select.selectedOptions);
+    if (selected.length === 0) {
+        showMessage('Нет выбранных категорий для удаления', 'warning');
+        return;
+    }
+    selected.forEach(opt => opt.remove());
 }
 
 // Настройка формы
@@ -389,14 +524,8 @@ function setupForm() {
             if (key === 'author_ids' || key === 'category_ids') {
                 // Для множественных select получаем все значения
                 if (!data[key]) data[key] = [];
-                
-                // Проверяем если это временный ID
-                if (value.toString().startsWith('temp_')) {
-                    // Для временных авторов/категорий пока не добавляем
-                    console.log(`⚠️  Временный ID: ${value} - будет проигнорирован`);
-                } else {
-                    data[key].push(parseInt(value));
-                }
+                // Все значения теперь реальные числовые ID
+                data[key].push(parseInt(value));
             } else if (key === 'pages' || key === 'publication_year') {
                 data[key] = value ? parseInt(value) : null;
             } else {
@@ -420,6 +549,84 @@ function setupForm() {
         // Отправляем данные
         await submitBookData(data);
     });
+}
+
+// Загрузка файла книги на сервер через админский эндпоинт
+async function uploadBookFile() {
+    const fileInput = document.getElementById('file_upload');
+    const urlInput = document.getElementById('file_url');
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        showMessage('Выберите файл книги для загрузки', 'warning');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/admin/upload/book-file', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const msg = errorData.detail || 'Не удалось загрузить файл книги';
+            showMessage(`❌ Ошибка загрузки файла книги: ${msg}`, 'danger');
+            return;
+        }
+
+        const result = await response.json();
+        if (result.url && urlInput) {
+            urlInput.value = result.url;
+            showMessage('✅ Файл книги успешно загружен', 'success');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки файла книги:', error);
+        showMessage('❌ Ошибка сети при загрузке файла книги', 'danger');
+    }
+}
+
+// Загрузка обложки книги на сервер через админский эндпоинт
+async function uploadCoverImage() {
+    const fileInput = document.getElementById('cover_upload');
+    const urlInput = document.getElementById('cover_url');
+
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        showMessage('Выберите файл обложки для загрузки', 'warning');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch('/api/admin/upload/cover', {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            const msg = errorData.detail || 'Не удалось загрузить обложку';
+            showMessage(`❌ Ошибка загрузки обложки: ${msg}`, 'danger');
+            return;
+        }
+
+        const result = await response.json();
+        if (result.url && urlInput) {
+            urlInput.value = result.url;
+            showMessage('✅ Обложка успешно загружена', 'success');
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки обложки:', error);
+        showMessage('❌ Ошибка сети при загрузке обложки', 'danger');
+    }
 }
 
 // Отправка данных книги

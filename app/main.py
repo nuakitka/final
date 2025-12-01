@@ -12,6 +12,7 @@ from app.core.security import verify_token
 from app.models import get_db, SessionLocal
 from app.services.book import get_book
 from app.models.user import User as UserModel
+from app.services.user_stats import ensure_reading_session
 
 app = FastAPI(
     title="Online Library API",
@@ -106,6 +107,24 @@ async def book_detail(
     if not book:
         # Перенаправляем на каталог если книга не найдена
         return RedirectResponse(url="/catalog")
+
+    # Если запрошено чтение (например, /book/{id}?read=true) и есть файл,
+    # показываем встроенный просмотрщик PDF/файла и фиксируем сессию чтения
+    if request.query_params.get("read") == "true" and book.file_url:
+        # Если пользователь авторизован, создаём/обновляем сессию чтения
+        user_state = getattr(request, "state", None)
+        user_info = getattr(user_state, "user", None) if user_state else None
+        if user_info and user_info.get("is_authenticated") and user_info.get("user_id"):
+            try:
+                ensure_reading_session(db, user_info["user_id"], book.id)
+            except Exception:
+                # Не мешаем пользователю читать книгу, даже если сессия не создалась
+                pass
+
+        return templates.TemplateResponse(
+            "reader.html",
+            {"request": request, "book": book, "file_url": book.file_url}
+        )
     
     # Преобразуем данные книги для шаблона
     book_data = {
@@ -113,7 +132,7 @@ async def book_detail(
         "title": book.title,
         "subtitle": book.subtitle,
         "description": book.description or "Описание отсутствует.",
-        "cover_url": book.cover_url or "/static/images/book-placeholder.jpg",
+        "cover_url": book.cover_url,
         "file_url": book.file_url,
         "publication_year": book.publication_year,
         "pages": book.pages,

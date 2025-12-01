@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Чтение: {{ book.title }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 mb-3">
+        {% if not request.state.user.is_authenticated %}
+            <div class="alert alert-info mb-3">
+                Чтобы сохранять прогресс чтения и оставлять отзывы,
+                <a href="/login" class="alert-link">войдите в свой аккаунт</a>.
+            </div>
+        {% endif %}
+        <h1 class="h4">{{ book.title }}</h1>
+        {% if book.authors %}
+            <p class="text-muted mb-1">
+                {{ book.authors | map(attribute='first_name') | list | join(' ') }}
+            </p>
+        {% endif %}
+
+        {% if request.state.user.is_authenticated %}
+            <div class="mb-2">
+                <a href="/book/{{ book.id }}" class="btn btn-outline-secondary btn-sm me-2">К описанию</a>
+                {% if file_url %}
+                    <a href="{{ file_url }}" class="btn btn-outline-primary btn-sm me-2" target="_blank">Открыть в новой вкладке</a>
+                {% endif %}
+                <button type="button" class="btn btn-success btn-sm" onclick="markBookCompleted()">Отметить как прочитанное</button>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <label for="readingProgress" class="form-label mb-0 small">Прогресс чтения:</label>
+                <input type="range" id="readingProgress" min="0" max="100" value="0" oninput="updateProgressLabel(this.value)" style="width: 200px;">
+                <span id="readingProgressValue" class="small text-muted">0%</span>
+                <button type="button" class="btn btn-outline-primary btn-sm" onclick="saveReadingProgress()">Сохранить прогресс</button>
+            </div>
+        {% endif %}
+    </div>
+
+    {% if request.state.user.is_authenticated %}
+        <div class="col-12" style="height: 80vh;">
+            {% if file_url %}
+                <iframe src="{{ file_url }}" style="width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
+            {% else %}
+                <div class="alert alert-warning">
+                    Файл книги не найден.
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function markBookCompleted() {
+    // Не даём неавторизованным пользователям дергать API прогресса
+    if (!window.currentUser) {
+        alert('Чтобы отмечать прогресс чтения, войдите в систему.');
+        return;
+    }
+    const slider = document.getElementById('readingProgress');
+    if (slider) {
+        slider.value = 100;
+        updateProgressLabel(100);
+    }
+    saveReadingProgress(true);
+}
+
+function updateProgressLabel(value) {
+    const label = document.getElementById('readingProgressValue');
+    if (label) {
+        label.textContent = value + '%';
+    }
+}
+
+function saveReadingProgress(forceCompleted = false) {
+    if (!window.currentUser) {
+        alert('Чтобы сохранять прогресс, войдите в систему.');
+        return;
+    }
+    const bookId = {{ book.id }};
+    const slider = document.getElementById('readingProgress');
+    const value = slider ? parseInt(slider.value, 10) || 0 : 0;
+
+    const payload = {
+        progress_percentage: value,
+    };
+
+    if (forceCompleted || value === 100) {
+        payload.is_completed = true;
+    }
+
+    fetch(`/api/users/me/reading-sessions/${bookId}/progress`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Ошибка обновления прогресса');
+        }
+        return response.json();
+    })
+    .then(() => {
+        console.log('Прогресс чтения сохранён:', payload);
+    })
+    .catch(error => {
+        console.error('Ошибка обновления прогресса чтения:', error);
+    });
+}
+</script>
+{% endblock %}

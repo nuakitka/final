@@ -41,6 +41,8 @@ class BookBase(BaseModel):
     publication_year: Optional[int] = None
     language: str = "ru"
     pages: Optional[int] = None
+    file_url: Optional[str] = None
+    cover_url: Optional[str] = None
 
 
 class BookCreate(BookBase):
@@ -55,6 +57,8 @@ class BookUpdate(BaseModel):
     publication_year: Optional[int] = None
     language: Optional[str] = None
     pages: Optional[int] = None
+    file_url: Optional[str] = None
+    cover_url: Optional[str] = None
     category_ids: Optional[List[int]] = None
     author_ids: Optional[List[int]] = None
 

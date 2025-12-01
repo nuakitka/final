@@ -1,7 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
 from typing import List
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
+from pathlib import Path
+from uuid import uuid4
+import shutil
 
 from app.models import get_db
 from app.schemas.user import User
@@ -9,25 +13,45 @@ from app.schemas.book import Book, BookCreate, BookUpdate
 from app.services.book import get_books, create_book, update_book, delete_book
 from app.services.auth import get_users
 from app.models.user import User as UserModel
-from app.models.book import Book as BookModel, Review, ReadingSession
+from app.models.book import Book as BookModel, Review, ReadingSession, Author as AuthorModel, Category as CategoryModel
 
 router = APIRouter(tags=["admin"])
 
 # Простая проверка через request.state.user
 def check_admin(request: Request):
-    """Упрощенная проверка администратора"""
+    """Проверка, что пользователь — администратор."""
     user = request.state.user
     print(f"🔍 Проверка администратора: user={user}")
-    
+
     if not user or not user.get("is_authenticated"):
         print("❌ Пользователь не авторизован")
         raise HTTPException(status_code=401, detail="Не авторизован")
-    
+
     if user.get("role") != "admin":
         print(f"❌ Недостаточно прав. Роль: {user.get('role')}")
         raise HTTPException(status_code=403, detail="Требуются права администратора")
-    
+
     print(f"✅ Администратор подтвержден: {user.get('username')}")
+    return True
+
+
+def check_admin_or_librarian(request: Request):
+    """Проверка, что пользователь — админ или библиотекарь.
+
+    Используем для операций с книгами и загрузки файлов.
+    """
+    user = request.state.user
+    print(f"🔍 Проверка staff (admin/librarian): user={user}")
+
+    if not user or not user.get("is_authenticated"):
+        print("❌ Пользователь не авторизован")
+        raise HTTPException(status_code=401, detail="Не авторизован")
+
+    if user.get("role") not in ("admin", "librarian"):
+        print(f"❌ Недостаточно прав. Роль: {user.get('role')}")
+        raise HTTPException(status_code=403, detail="Требуются права администратора или библиотекаря")
+
+    print(f"✅ Доступ staff подтверждён: {user.get('username')} ({user.get('role')})")
     return True
 
 @router.get("/stats")
@@ -79,9 +103,166 @@ def admin_create_book(
     book: BookCreate,
     db: Session = Depends(get_db)
 ):
-    """Создать книгу (админ)"""
+    """Создать книгу (админ/библиотекарь). Любые ошибки БД заворачиваем в понятный JSON-ответ."""
+    check_admin_or_librarian(request)
+
+    try:
+        created = create_book(db, book)
+        return created
+    except SQLAlchemyError as e:
+        db.rollback()
+        # Логируем подробности на сервере, но наружу отдаём аккуратное сообщение
+        print(f"❌ Ошибка БД при создании книги: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail="Ошибка при сохранении книги в базу данных. Проверьте корректность автора, категории и других полей."
+        )
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Неизвестная ошибка при создании книги: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Внутренняя ошибка сервера при создании книги. Попробуйте позже или проверьте логи."
+        )
+
+
+@router.post("/authors")
+def admin_create_author(
+    request: Request,
+    first_name: str,
+    last_name: str,
+    db: Session = Depends(get_db)
+):
+    """Создать автора (админ)."""
     check_admin(request)
-    return create_book(db, book)
+
+    author = AuthorModel(first_name=first_name, last_name=last_name)
+    db.add(author)
+    db.commit()
+    db.refresh(author)
+    return {
+        "id": author.id,
+        "first_name": author.first_name,
+        "last_name": author.last_name,
+    }
+
+
+@router.delete("/authors/{author_id}")
+def admin_delete_author(
+    request: Request,
+    author_id: int,
+    db: Session = Depends(get_db)
+):
+    """Удалить автора (админ). Нельзя удалить, если к нему привязаны книги."""
+    check_admin(request)
+
+    author = db.query(AuthorModel).filter(AuthorModel.id == author_id).first()
+    if not author:
+        raise HTTPException(status_code=404, detail="Author not found")
+
+    # Если у автора есть книги, не даём удалить, чтобы не ломать связи
+    if author.books:
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя удалить автора, который привязан к книгам. Сначала отвяжите книги."
+        )
+
+    db.delete(author)
+    db.commit()
+    return {"detail": "Автор удалён"}
+
+
+@router.post("/categories")
+def admin_create_category(
+    request: Request,
+    name: str,
+    description: str | None = None,
+    db: Session = Depends(get_db)
+):
+    """Создать категорию (админ)."""
+    check_admin(request)
+
+    category = CategoryModel(name=name, description=description)
+    db.add(category)
+    db.commit()
+    db.refresh(category)
+    return {
+        "id": category.id,
+        "name": category.name,
+        "description": category.description,
+    }
+
+
+@router.delete("/categories/{category_id}")
+def admin_delete_category(
+    request: Request,
+    category_id: int,
+    db: Session = Depends(get_db)
+):
+    """Удалить категорию (админ). Нельзя удалить, если к ней привязаны книги."""
+    check_admin(request)
+
+    category = db.query(CategoryModel).filter(CategoryModel.id == category_id).first()
+    if not category:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    if category.books:
+        raise HTTPException(
+            status_code=400,
+            detail="Нельзя удалить категорию, которая привязана к книгам. Сначала отвяжите книги."
+        )
+
+    db.delete(category)
+    db.commit()
+    return {"detail": "Категория удалена"}
+
+
+@router.post("/upload/book-file")
+async def admin_upload_book_file(
+    request: Request,
+    file: UploadFile = File(...)
+):
+    """Загрузить файл книги (PDF/EPUB и т.п.). Только для админа.
+
+    Возвращает URL, который можно сохранить в поле file_url книги.
+    """
+    check_admin(request)
+
+    books_dir = Path("static") / "books"
+    books_dir.mkdir(parents=True, exist_ok=True)
+
+    suffix = Path(file.filename).suffix or ".pdf"
+    filename = f"{uuid4().hex}{suffix}"
+    dest_path = books_dir / filename
+
+    with dest_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {"url": f"/static/books/{filename}"}
+
+
+@router.post("/upload/cover")
+async def admin_upload_cover(
+    request: Request,
+    file: UploadFile = File(...)
+):
+    """Загрузить обложку книги (изображение). Только для админа.
+
+    Возвращает URL, который можно сохранить в поле cover_url книги.
+    """
+    check_admin(request)
+
+    covers_dir = Path("static") / "covers"
+    covers_dir.mkdir(parents=True, exist_ok=True)
+
+    suffix = Path(file.filename).suffix or ".jpg"
+    filename = f"{uuid4().hex}{suffix}"
+    dest_path = covers_dir / filename
+
+    with dest_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    return {"url": f"/static/covers/{filename}"}
 
 
 @router.put("/books/{book_id}", response_model=Book)
@@ -91,8 +272,8 @@ def admin_update_book(
     book: BookUpdate,
     db: Session = Depends(get_db)
 ):
-    """Обновить книгу (админ)"""
-    check_admin(request)
+    """Обновить книгу (админ/библиотекарь)"""
+    check_admin_or_librarian(request)
     updated_book = update_book(db, book_id, book)
     if not updated_book:
         raise HTTPException(status_code=404, detail="Book not found")
