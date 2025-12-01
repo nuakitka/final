@@ -41,6 +41,8 @@ services:
       ACCESS_TOKEN_EXPIRE_MINUTES: 30
       DEBUG: true
       REDIS_URL: redis://redis:6379
+      TIMEZONE: GMT
+      TZ: GMT
     depends_on:
       - db
       - redis

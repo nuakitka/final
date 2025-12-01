@@ -1,226 +1,189 @@
+<!-- templates/profile.html -->
 {% extends "base.html" %}
 
-{% block title %}Профиль - Онлайн-библиотека{% endblock %}
+{% block title %}Профиль - Онлайн библиотека{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-4">
         <div class="card">
-            <div class="card-header">
-                <h5>Мой профиль</h5>
-            </div>
             <div class="card-body text-center">
-                <div class="mb-3">
-                    <img src="/static/images/default-avatar.png" class="rounded-circle" width="100" height="100" alt="Avatar">
+                <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                     style="width: 100px; height: 100px; font-size: 2rem;">
+                    {{ request.state.user.username|first|upper if request.state.user and request.state.user.is_authenticated else 'U' }}
                 </div>
-                <h5 id="profileName">Загрузка...</h5>
-                <p class="text-muted" id="profileEmail">Загрузка...</p>
-                <p class="badge bg-primary" id="profileRole">Загрузка...</p>
+                <h4>{{ request.state.user.username if request.state.user and request.state.user.is_authenticated else 'Пользователь' }}</h4>
+                <p class="text-muted">
+                    {% if request.state.user and request.state.user.role == 'admin' %}
+                        Администратор
+                    {% elif request.state.user and request.state.user.role == 'librarian' %}
+                        Библиотекарь
+                    {% else %}
+                        Читатель
+                    {% endif %}
+                </p>
+                <div class="small text-muted">
+                    Зарегистрирован: <span id="registrationDate">Загрузка...</span>
+                </div>
             </div>
         </div>
         
         <div class="card mt-3">
             <div class="card-header">
-                <h5>Статистика</h5>
+                <h6 class="card-title mb-0">Статистика чтения</h6>
             </div>
             <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-6">
-                        <h4 id="booksRead">0</h4>
-                        <small class="text-muted">Прочитано</small>
-                    </div>
-                    <div class="col-6">
-                        <h4 id="reviewsCount">0</h4>
-                        <small class="text-muted">Отзывов</small>
-                    </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Прочитано книг:</span>
+                    <strong id="completedBooks">0</strong>
                 </div>
-                <hr>
-                <div class="row text-center">
-                    <div class="col-6">
-                        <h4 id="favoritesCount">0</h4>
-                        <small class="text-muted">Избранное</small>
-                    </div>
-                    <div class="col-6">
-                        <h4 id="downloadsCount">0</h4>
-                        <small class="text-muted">Скачано</small>
-                    </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>В процессе:</span>
+                    <strong id="readingBooks">0</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Прочитано страниц:</span>
+                    <strong id="totalPages">0</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Рецензий:</span>
+                    <strong id="reviewsCount">0</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>В избранном:</span>
+                    <strong id="favoritesCount">0</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span>Время чтения:</span>
+                    <strong id="readingTime">0 ч</strong>
                 </div>
             </div>
         </div>
     </div>
     
     <div class="col-md-8">
-        <ul class="nav nav-tabs" id="profileTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="favorites-tab" data-bs-toggle="tab" data-bs-target="#favorites" type="button" role="tab">Избранное</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="reading-tab" data-bs-toggle="tab" data-bs-target="#reading" type="button" role="tab">Читаю сейчас</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">История</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">Настройки</button>
-            </li>
-        </ul>
-        
-        <div class="tab-content" id="profileTabsContent">
-            <div class="tab-pane fade show active" id="favorites" role="tabpanel">
-                <div class="mt-3">
-                    <h5>Мои избранные книги</h5>
-                    <div id="favoritesContainer">
-                        <!-- Favorites will be loaded dynamically -->
+        <!-- Активные книги -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Активные книги</h5>
+            </div>
+            <div class="card-body">
+                <div id="activeBooksList">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-book" style="font-size: 3rem;"></i>
+                        <p class="mt-2 mb-1">У вас пока нет активных книг</p>
+                        <a href="/catalog" class="btn btn-primary btn-sm">Найти книги</a>
                     </div>
                 </div>
             </div>
-            
-            <div class="tab-pane fade" id="reading" role="tabpanel">
-                <div class="mt-3">
-                    <h5>Читаю сейчас</h5>
-                    <div id="readingContainer">
-                        <!-- Currently reading books will be loaded dynamically -->
-                    </div>
-                </div>
+        </div>
+
+        <!-- Недавно прочитанные -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Недавно прочитанные</h5>
             </div>
-            
-            <div class="tab-pane fade" id="history" role="tabpanel">
-                <div class="mt-3">
-                    <h5>История чтения</h5>
-                    <div id="historyContainer">
-                        <!-- Reading history will be loaded dynamically -->
+            <div class="card-body">
+                <div id="recentBooksList">
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-clock-history" style="font-size: 3rem;"></i>
+                        <p class="mt-2 mb-1">История чтения пока пуста</p>
+                        <span class="small">Книги, которые вы прочитаете, появятся здесь.</span>
                     </div>
-                </div>
-            </div>
-            
-            <div class="tab-pane fade" id="settings" role="tabpanel">
-                <div class="mt-3">
-                    <h5>Настройки профиля</h5>
-                    <form id="settingsForm">
-                        <div class="mb-3">
-                            <label for="editUsername" class="form-label">Имя пользователя:</label>
-                            <input type="text" class="form-control" id="editUsername">
-                        </div>
-                        <div class="mb-3">
-                            <label for="editEmail" class="form-label">Email:</label>
-                            <input type="email" class="form-control" id="editEmail">
-                        </div>
-                        <div class="mb-3">
-                            <label for="editFullName" class="form-label">Полное имя:</label>
-                            <input type="text" class="form-control" id="editFullName">
-                        </div>
-                        <div class="mb-3">
-                            <label for="newPassword" class="form-label">Новый пароль:</label>
-                            <input type="password" class="form-control" id="newPassword">
-                            <div class="form-text">Оставьте пустым, если не хотите менять пароль</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="confirmNewPassword" class="form-label">Подтвердите новый пароль:</label>
-                            <input type="password" class="form-control" id="confirmNewPassword">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Сохранить изменения</button>
-                    </form>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
+// Загрузка статистики пользователя
+async function loadUserStats() {
+    try {
+        const response = await fetch('/api/users/me/stats', {
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const stats = await response.json();
+            
+            // Обновляем статистику
+            document.getElementById('completedBooks').textContent = stats.completed_books;
+            document.getElementById('readingBooks').textContent = stats.reading_books;
+            document.getElementById('totalPages').textContent = stats.total_pages;
+            document.getElementById('reviewsCount').textContent = stats.reviews_count;
+            document.getElementById('favoritesCount').textContent = stats.favorites_count;
+            document.getElementById('readingTime').textContent = stats.reading_time_hours + ' ч';
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки статистики:', error);
+    }
+}
+
+// Загрузка активных книг
+async function loadActiveBooks() {
+    try {
+        const response = await fetch('/api/users/me/reading-sessions?active=true', {
+            credentials: 'include'
+        });
+        
+        if (response.ok) {
+            const sessions = await response.json();
+            const container = document.getElementById('activeBooksList');
+            
+            if (sessions.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-book" style="font-size: 3rem;"></i>
+                        <p class="mt-2">У вас пока нет активных книг</p>
+                        <a href="/catalog" class="btn btn-primary btn-sm">Найти книги</a>
+                    </div>
+                `;
+            } else {
+                let html = '<div class="list-group">';
+                sessions.forEach(session => {
+                    html += `
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">${session.book.title}</h6>
+                                    <small class="text-muted">Прогресс: ${session.progress_percentage}%</small>
+                                </div>
+                                <div>
+                                    <button class="btn btn-outline-primary btn-sm me-2" onclick="continueReading(${session.book.id})">
+                                        Продолжить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                container.innerHTML = html;
+            }
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки активных книг:', error);
+    }
+}
+
+// Загрузка даты регистрации
+function loadRegistrationDate() {
+    // Здесь можно получить дату из данных пользователя
+    document.getElementById('registrationDate').textContent = 'Сегодня';
+}
+
+// Инициализация при загрузке страницы
 document.addEventListener('DOMContentLoaded', function() {
-    loadUserProfile();
-    loadFavorites();
+    loadRegistrationDate();
+    loadUserStats();
+    loadActiveBooks();
 });
 
-function loadUserProfile() {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        window.location.href = '/login';
-        return;
-    }
-    
-    fetch('/api/auth/me', {
-        headers: {
-            'Authorization': `Bearer ${token}`
-        }
-    })
-    .then(response => response.json())
-    .then(user => {
-        document.getElementById('profileName').textContent = user.full_name || user.username;
-        document.getElementById('profileEmail').textContent = user.email;
-        document.getElementById('profileRole').textContent = getRoleDisplayName(user.role);
-        
-        // Fill settings form
-        document.getElementById('editUsername').value = user.username;
-        document.getElementById('editEmail').value = user.email;
-        document.getElementById('editFullName').value = user.full_name || '';
-        
-        // Load statistics (placeholder)
-        loadUserStatistics();
-    })
-    .catch(error => {
-        console.error('Error loading profile:', error);
-        if (error.message.includes('401')) {
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-        }
-    });
+function continueReading(bookId) {
+    window.location.href = `/book/${bookId}?read=true`;
 }
-
-function getRoleDisplayName(role) {
-    const roles = {
-        'guest': 'Гость',
-        'reader': 'Читатель',
-        'librarian': 'Библиотекарь',
-        'admin': 'Администратор'
-    };
-    return roles[role] || role;
-}
-
-function loadUserStatistics() {
-    // Placeholder statistics
-    document.getElementById('booksRead').textContent = '0';
-    document.getElementById('reviewsCount').textContent = '0';
-    document.getElementById('favoritesCount').textContent = '0';
-    document.getElementById('downloadsCount').textContent = '0';
-}
-
-function loadFavorites() {
-    const token = localStorage.getItem('token');
-    if (!token) return;
-    
-    // This would need to be implemented in the API
-    const container = document.getElementById('favoritesContainer');
-    container.innerHTML = '<p class="text-muted">У вас пока нет избранных книг</p>';
-}
-
-// Settings form submission
-document.getElementById('settingsForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const newPassword = document.getElementById('newPassword').value;
-    const confirmPassword = document.getElementById('confirmNewPassword').value;
-    
-    if (newPassword && newPassword !== confirmPassword) {
-        alert('Новые пароли не совпадают');
-        return;
-    }
-    
-    const token = localStorage.getItem('token');
-    const updateData = {
-        username: document.getElementById('editUsername').value,
-        email: document.getElementById('editEmail').value,
-        full_name: document.getElementById('editFullName').value
-    };
-    
-    if (newPassword) {
-        updateData.password = newPassword;
-    }
-    
-    // This would need to be implemented in the API
-    alert('Функция обновления профиля будет доступна в следующей версии');
-});
 </script>
+{% endblock %}
 {% endblock %}

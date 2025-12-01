@@ -268,11 +268,9 @@ function createBookCard(book) {
                     <div class="d-flex justify-content-between align-items-center">
                         <a href="/book/${book.id}" class="btn btn-primary btn-sm">Подробнее</a>
                         <div>
-                            ${authToken ? `
-                                <button class="btn btn-outline-danger btn-sm" onclick="toggleFavorite(${book.id})">
-                                    <i class="far fa-heart"></i>
-                                </button>
-                            ` : ''}
+                            <button class="btn btn-outline-danger btn-sm" onclick="toggleFavorite(${book.id}, this)">
+                                В избранное
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -282,26 +280,51 @@ function createBookCard(book) {
 }
 
 // Toggle favorite book
-function toggleFavorite(bookId) {
-    if (!authToken) {
-        alert('Для добавления в избранное необходимо войти в систему');
-        return;
-    }
-    
-    // This would need to be implemented in the API
-    const button = event.target.closest('button');
-    const icon = button.querySelector('i');
-    
-    if (icon.classList.contains('far')) {
-        icon.classList.remove('far');
-        icon.classList.add('fas');
-        button.classList.remove('btn-outline-danger');
-        button.classList.add('btn-danger');
+async function toggleFavorite(bookId, source) {
+
+    let button = null;
+    if (source instanceof HTMLElement) {
+        button = source.closest('button');
     } else {
-        icon.classList.remove('fas');
-        icon.classList.add('far');
-        button.classList.remove('btn-danger');
-        button.classList.add('btn-outline-danger');
+        const evt = source || window.event;
+        if (evt && evt.target) {
+            button = evt.target.closest('button');
+        }
+    }
+
+    if (!button) return;
+
+    const icon = button.querySelector('i');
+    const isCurrentlyFavorite = icon && icon.classList.contains('fas');
+
+    try {
+        if (isCurrentlyFavorite) {
+            // Удаляем из избранного
+            await apiCall(`/api/users/me/favorites/${bookId}`, {
+                method: 'DELETE'
+            });
+            if (icon) {
+                icon.classList.remove('fas');
+                icon.classList.add('far');
+            }
+            button.classList.remove('btn-danger');
+            button.classList.add('btn-outline-danger');
+        } else {
+            // Добавляем в избранное
+            await apiCall(`/api/users/me/favorites/${bookId}`, {
+                method: 'POST'
+            });
+            if (icon) {
+                icon.classList.remove('far');
+                icon.classList.add('fas');
+            }
+            button.classList.remove('btn-outline-danger');
+            button.classList.add('btn-danger');
+        }
+    } catch (error) {
+        console.error('Ошибка обновления избранного:', error);
+        alert('Не удалось обновить избранное. Попробуйте позже.');
+        throw error;
     }
 }
 
@@ -366,7 +389,8 @@ async function apiCall(url, options = {}) {
     const defaultOptions = {
         headers: {
             'Content-Type': 'application/json'
-        }
+        },
+        credentials: 'include'
     };
     
     if (authToken) {

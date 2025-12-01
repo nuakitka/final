@@ -1,144 +1,69 @@
 {% extends "base.html" %}
 
-{% block title %}Главная страница - Онлайн-библиотека{% endblock %}
+{% block title %}Главная - Онлайн библиотека{% endblock %}
 
 {% block content %}
-<div class="hero-section bg-primary text-white rounded p-5 mb-5">
-    <div class="container text-center">
-        <h1 class="display-4 mb-4">Добро пожаловать в Онлайн-библиотеку</h1>
-        <p class="lead mb-4">Более 10 000 цифровых книг в свободном доступе</p>
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="input-group input-group-lg">
-                    <input type="text" class="form-control" placeholder="Найдите свою книгу..." id="heroSearch">
-                    <button class="btn btn-warning" type="button" onclick="performSearch()">
-                        <i class="fas fa-search"></i> Найти
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="jumbotron bg-light p-5 rounded-lg">
+    <h1 class="display-4">Добро пожаловать в онлайн библиотеку!</h1>
+    <p class="lead">Откройте для себя тысячи книг различных жанров. Читайте онлайн или скачивайте любимые произведения.</p>
+    <hr class="my-4">
+    <p>Присоединяйтесь к нашему сообществу читателей уже сегодня.</p>
+    <a class="btn btn-primary btn-lg" href="/register" role="button">Начать чтение</a>
 </div>
 
-<div class="row mb-5">
-    <div class="col-md-12">
-        <h2 class="mb-4">Популярные категории</h2>
-        <div class="row" id="popularCategories">
-            <!-- Categories will be loaded dynamically -->
-        </div>
-    </div>
-</div>
-
-<div class="row mb-5">
-    <div class="col-md-12">
-        <h2 class="mb-4">Новинки</h2>
-        <div class="row" id="featuredBooks">
-            <!-- Featured books will be loaded dynamically -->
-        </div>
-    </div>
-</div>
-
-<div class="row mb-5">
-    <div class="col-md-12">
-        <h2 class="mb-4">Популярные книги</h2>
-        <div class="row" id="popularBooks">
-            <!-- Popular books will be loaded dynamically -->
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-4">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-book-open fa-3x text-primary mb-3"></i>
-                <h5 class="card-title">Большой выбор</h5>
-                <p class="card-text">Тысячи книг в различных жанрах и форматах</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-mobile-alt fa-3x text-success mb-3"></i>
-                <h5 class="card-title">Удобный доступ</h5>
-                <p class="card-text">Читайте с любого устройства в любое время</p>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card h-100">
-            <div class="card-body text-center">
-                <i class="fas fa-users fa-3x text-info mb-3"></i>
-                <h5 class="card-title">Сообщество</h5>
-                <p class="card-text">Делитесь отзывами и находите единомышленников</p>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    loadFeaturedBooks();
-    loadPopularBooks();
-    loadCategories();
-});
-
-function loadFeaturedBooks() {
-    fetch('/api/books?limit=6')
-        .then(response => response.json())
-        .then(books => {
-            const container = document.getElementById('featuredBooks');
-            container.innerHTML = books.map(book => createBookCard(book)).join('');
-        });
-}
-
-function loadPopularBooks() {
-    fetch('/api/books?limit=6')
-        .then(response => response.json())
-        .then(books => {
-            const container = document.getElementById('popularBooks');
-            container.innerHTML = books.map(book => createBookCard(book)).join('');
-        });
-}
-
-function loadCategories() {
-    fetch('/api/books/categories/')
-        .then(response => response.json())
-        .then(categories => {
-            const container = document.getElementById('popularCategories');
-            container.innerHTML = categories.slice(0, 6).map(category => 
-                `<div class="col-md-2 mb-3">
-                    <div class="card text-center h-100">
-                        <div class="card-body">
-                            <h6 class="card-title">${category.name}</h6>
-                        </div>
-                    </div>
-                </div>`
-            ).join('');
-        });
-}
-
-function createBookCard(book) {
-    return `
-        <div class="col-md-4 mb-4">
+<section class="featured-books mt-5">
+    <h2 class="mb-4">Популярные книги</h2>
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for book in featured_books %}
+        <div class="col">
             <div class="card h-100">
-                <img src="${book.cover_url || '/static/images/default-book.jpg'}" class="card-img-top" alt="${book.title}">
+                <img src="{{ book.cover_url }}" class="card-img-top" alt="{{ book.title }}">
                 <div class="card-body">
-                    <h6 class="card-title">${book.title}</h6>
-                    <p class="card-text text-muted">${book.authors?.map(a => a.first_name + ' ' + a.last_name).join(', ') || 'Unknown'}</p>
-                    <div class="d-flex justify-content-between align-items-center">
-                        <span class="text-warning">
-                            <i class="fas fa-star"></i> ${book.rating || 0}
-                        </span>
-                        <a href="/book/${book.id}" class="btn btn-sm btn-outline-primary">Подробнее</a>
-                    </div>
+                    <h5 class="card-title">{{ book.title }}</h5>
+                    <p class="card-text">{{ book.author }}</p>
+                    <a href="/book/{{ book.id }}" class="btn btn-outline-primary">Подробнее</a>
                 </div>
             </div>
         </div>
-    `;
-}
-</script>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="categories mt-5">
+    <h2 class="mb-4">Категории</h2>
+    <div class="row">
+        {% for category in categories %}
+        <div class="col-md-3 mb-4">
+            <div class="card">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ category.name }}</h5>
+                    <p class="card-text">{{ category.book_count }} книг</p>
+                    <a href="/catalog?category={{ category.id }}" class="btn btn-sm btn-outline-secondary">Смотреть все</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="how-it-works mt-5 bg-light p-5 rounded">
+    <h2 class="text-center mb-4">Как это работает</h2>
+    <div class="row text-center">
+        <div class="col-md-4 mb-4">
+            <div class="h1 mb-3">1</div>
+            <h4>Регистрация</h4>
+            <p>Создайте аккаунт за минуту</p>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="h1 mb-3">2</div>
+            <h4>Выбор книги</h4>
+            <p>Найдите интересующую вас книгу в нашем каталоге</p>
+        </div>
+        <div class="col-md-4 mb-4">
+            <div class="h1 mb-3">3</div>
+            <h4>Чтение</h4>
+            <p>Наслаждайтесь чтением онлайн или скачайте книгу</p>
+        </div>
+    </div>
+</section>
 {% endblock %}

@@ -1,260 +1,550 @@
 {% extends "base.html" %}
 
-{% block title %}{{ book.title }} - Онлайн-библиотека{% endblock %}
+{% block title %}{% if book %}{{ book.title }} - Онлайн библиотека{% else %}Книга - Онлайн библиотека{% endif %}{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-4">
-        <img src="{{ book.cover_url or '/static/images/default-book.jpg' }}" class="img-fluid rounded" alt="{{ book.title }}">
-        <div class="mt-3">
-            <button class="btn btn-primary w-100 mb-2" onclick="addToFavorites({{ book_id }})">
-                <i class="fas fa-heart"></i> В избранное
-            </button>
-            <button class="btn btn-success w-100 mb-2" onclick="downloadBook({{ book_id }})">
-                <i class="fas fa-download"></i> Скачать
-            </button>
-            <button class="btn btn-info w-100" onclick="readOnline({{ book_id }})">
-                <i class="fas fa-book-open"></i> Читать онлайн
-            </button>
-        </div>
-    </div>
-    <div class="col-md-8">
-        <h1>{{ book.title }}</h1>
-        {% if book.subtitle %}
-        <h4 class="text-muted">{{ book.subtitle }}</h4>
-        {% endif %}
-        
-        <div class="mb-3">
-            <span class="text-warning">
-                {% for i in range(book.rating|int) %}
-                <i class="fas fa-star"></i>
-                {% endfor %}
-                {% if book.rating < 5 %}
-                {% for i in range(5 - book.rating|int) %}
-                <i class="far fa-star"></i>
-                {% endfor %}
+        <!-- Обложка книги -->
+        <div class="card mb-4">
+            <div class="card-body text-center">
+                {% if book and book.cover_url %}
+                    <img src="{{ book.cover_url }}" class="img-fluid rounded" alt="{{ book.title }}" style="max-height: 400px;">
+                {% else %}
+                    <div class="bg-light d-flex align-items-center justify-content-center" style="height: 400px;">
+                        <i class="bi bi-book" style="font-size: 5rem; color: #ccc;"></i>
+                    </div>
                 {% endif %}
-                {{ book.rating or 0 }}
-            </span>
-            <span class="text-muted ms-2">({{ book.download_count }} скачиваний)</span>
-        </div>
-        
-        <div class="mb-4">
-            <h5>Авторы:</h5>
-            <div>
-                {% for author in book.authors %}
-                <span class="badge bg-secondary me-2">{{ author.first_name }} {{ author.last_name }}</span>
-                {% endfor %}
             </div>
         </div>
         
-        <div class="mb-4">
-            <h5>Категории:</h5>
-            <div>
-                {% for category in book.categories %}
-                <span class="badge bg-primary me-2">{{ category.name }}</span>
-                {% endfor %}
-            </div>
-        </div>
-        
-        <div class="mb-4">
-            <h5>Описание:</h5>
-            <p>{{ book.description or 'Описание отсутствует' }}</p>
-        </div>
-        
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <strong>Язык:</strong> {{ book.language or 'Не указано' }}
-            </div>
-            <div class="col-md-6">
-                <strong>Год издания:</strong> {{ book.publication_year or 'Не указан' }}
-            </div>
-            <div class="col-md-6">
-                <strong>Страниц:</strong> {{ book.pages or 'Не указано' }}
-            </div>
-            <div class="col-md-6">
-                <strong>Формат:</strong> {{ book.file_format or 'Не указан' }}
+        <!-- Информация о файле -->
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Информация</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Язык:</span>
+                        <span class="badge bg-info">
+                            {% if book and book.language %}
+                                {{ book.language|upper }}
+                            {% else %}
+                                RU
+                            {% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Год:</span>
+                        <span>
+                            {% if book and book.publication_year %}
+                                {{ book.publication_year }}
+                            {% else %}
+                                Не указан
+                            {% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>Страниц:</span>
+                        <span>
+                            {% if book and book.pages %}
+                                {{ book.pages }}
+                            {% else %}
+                                Не указано
+                            {% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between">
+                        <span>ISBN:</span>
+                        <span>
+                            {% if book and book.isbn %}
+                                {{ book.isbn }}
+                            {% else %}
+                                Не указан
+                            {% endif %}
+                        </span>
+                    </li>
+                </ul>
+                
+                <!-- Кнопки действий -->
+                <div class="mt-3" id="actionButtons">
+                    {% if book and book.file_url %}
+                        <a href="{{ book.file_url }}" class="btn btn-success w-100 mb-2" target="_blank">
+                            <i class="bi bi-download"></i> Скачать книгу
+                        </a>
+                    {% endif %}
+                    
+                    {% if book %}
+                        <button class="btn btn-primary w-100 mb-2" onclick="startReading()">
+                            <i class="bi bi-book"></i> Читать онлайн
+                        </button>
+                    {% endif %}
+                </div>
             </div>
         </div>
     </div>
-</div>
-
-<div class="row mt-5">
-    <div class="col-md-12">
-        <h3>Отзывы</h3>
-        
-        <!-- Add review form -->
-        <div class="card mb-4" id="reviewForm">
+    
+    <div class="col-md-8">
+        <!-- Информация о книге -->
+        <div class="card mb-4">
             <div class="card-body">
-                <h5>Оставить отзыв</h5>
-                <form id="reviewFormElement">
-                    <div class="mb-3">
-                        <label for="reviewRating" class="form-label">Оценка:</label>
-                        <select class="form-select" id="reviewRating" required>
-                            <option value="">Выберите оценку</option>
-                            <option value="5">5 - Отлично</option>
-                            <option value="4">4 - Хорошо</option>
-                            <option value="3">3 - Нормально</option>
-                            <option value="2">2 - Плохо</option>
-                            <option value="1">1 - Ужасно</option>
-                        </select>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/catalog">Каталог</a></li>
+                        {% if book and book.categories %}
+                            {% for category in book.categories %}
+                                <li class="breadcrumb-item"><a href="/catalog?category={{ category.id }}">{{ category.name }}</a></li>
+                            {% endfor %}
+                        {% endif %}
+                    </ol>
+                </nav>
+                
+                <h1 class="card-title">
+                    {% if book %}
+                        {{ book.title }}
+                    {% else %}
+                        Книга не найдена
+                    {% endif %}
+                </h1>
+                
+                {% if book and book.subtitle %}
+                    <h4 class="card-subtitle mb-3 text-muted">{{ book.subtitle }}</h4>
+                {% endif %}
+                
+                <!-- Авторы -->
+                <div class="mb-3">
+                    <h5>Авторы:</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if book and book.authors %}
+                            {% for author in book.authors %}
+                                <span class="badge bg-secondary">
+                                    {{ author.first_name }} {{ author.last_name }}
+                                </span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">Авторы не указаны</span>
+                        {% endif %}
                     </div>
-                    <div class="mb-3">
-                        <label for="reviewTitle" class="form-label">Заголовок:</label>
-                        <input type="text" class="form-control" id="reviewTitle">
+                </div>
+                
+                <!-- Описание -->
+                <div class="mb-4">
+                    <h5>Описание:</h5>
+                    <p class="card-text">
+                        {% if book and book.description %}
+                            {{ book.description }}
+                        {% else %}
+                            Описание отсутствует.
+                        {% endif %}
+                    </p>
+                </div>
+                
+                <!-- Категории -->
+                <div class="mb-4">
+                    <h5>Категории:</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if book and book.categories %}
+                            {% for category in book.categories %}
+                                <span class="badge bg-primary">{{ category.name }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <span class="text-muted">Категории не указаны</span>
+                        {% endif %}
                     </div>
-                    <div class="mb-3">
-                        <label for="reviewContent" class="form-label">Текст отзыва:</label>
-                        <textarea class="form-control" id="reviewContent" rows="4" required></textarea>
+                </div>
+                
+                <!-- Дополнительная информация -->
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Техническая информация:</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td>ID книги:</td>
+                                <td>
+                                    {% if book %}
+                                        <code>{{ book.id }}</code>
+                                    {% else %}
+                                        Неизвестно
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
                     </div>
-                    <button type="submit" class="btn btn-primary">Отправить отзыв</button>
-                </form>
+                </div>
             </div>
         </div>
         
-        <!-- Reviews list -->
-        <div id="reviewsContainer">
-            <!-- Reviews will be loaded dynamically -->
+        <!-- Рецензии -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Рецензии</h5>
+                <span class="badge bg-secondary" id="reviewsCount">0</span>
+            </div>
+            <div class="card-body">
+                <div id="reviewsContainer">
+                    <div class="text-center py-4">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Загрузка...</span>
+                        </div>
+                        <p class="mt-2">Загрузка рецензий...</p>
+                    </div>
+                </div>
+                
+                <!-- Форма добавления рецензии -->
+                {% if request.state.user and request.state.user.is_authenticated and book %}
+                    <div class="mt-4" id="reviewFormContainer">
+                        <h6>Добавить рецензию</h6>
+                        <form id="addReviewForm">
+                            <div class="mb-3">
+                                <label class="form-label">Оценка</label>
+                                <div class="rating-stars">
+                                    <input type="radio" id="star5" name="rating" value="5" required>
+                                    <label for="star5">★</label>
+                                    <input type="radio" id="star4" name="rating" value="4">
+                                    <label for="star4">★</label>
+                                    <input type="radio" id="star3" name="rating" value="3">
+                                    <label for="star3">★</label>
+                                    <input type="radio" id="star2" name="rating" value="2">
+                                    <label for="star2">★</label>
+                                    <input type="radio" id="star1" name="rating" value="1">
+                                    <label for="star1">★</label>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <input type="text" class="form-control" id="reviewTitle" placeholder="Заголовок рецензии (необязательно)">
+                            </div>
+                            <div class="mb-3">
+                                <textarea class="form-control" id="reviewContent" rows="4" placeholder="Текст рецензии *" required></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Отправить рецензию</button>
+                        </form>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> 
+                        {% if not book %}
+                            Книга не найдена.
+                        {% else %}
+                            Чтобы оставить рецензию, <a href="/login">войдите в систему</a>.
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_css %}
+<style>
+.rating-stars {
+    direction: rtl;
+    display: inline-block;
+}
+.rating-stars input {
+    display: none;
+}
+.rating-stars label {
+    font-size: 1.5rem;
+    color: #ddd;
+    cursor: pointer;
+}
+.rating-stars input:checked ~ label,
+.rating-stars label:hover,
+.rating-stars label:hover ~ label {
+    color: #ffc107;
+}
+.rating-stars input:checked + label {
+    color: #ffc107;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    loadBookDetails();
-    loadReviews();
-});
-
-function loadBookDetails() {
-    fetch(`/api/books/{{ book_id }}`)
-        .then(response => response.json())
-        .then(book => {
-            // Update page with book details if needed
-            console.log('Book loaded:', book);
-        });
-}
-
-function loadReviews() {
-    fetch(`/api/books/{{ book_id }}/reviews`)
-        .then(response => response.json())
-        .then(reviews => {
-            displayReviews(reviews);
-        });
-}
-
-function displayReviews(reviews) {
-    const container = document.getElementById('reviewsContainer');
-    
-    if (reviews.length === 0) {
-        container.innerHTML = '<p class="text-muted">Пока нет отзывов. Будьте первым!</p>';
-        return;
+    // Получаем bookId из URL
+    function getBookIdFromUrl() {
+        const path = window.location.pathname;
+        const match = path.match(/\/book\/(\d+)/);
+        return match ? parseInt(match[1]) : 0;
     }
     
-    container.innerHTML = reviews.map(review => `
-        <div class="card mb-3">
-            <div class="card-body">
-                <div class="d-flex justify-content-between align-items-start mb-2">
-                    <h6 class="card-title">${review.title || 'Без заголовка'}</h6>
-                    <div>
-                        <span class="text-warning">
-                            ${generateStars(review.rating)}
-                        </span>
-                        <small class="text-muted ms-2">${new Date(review.created_at).toLocaleDateString()}</small>
-                    </div>
-                </div>
-                <p class="card-text">${review.content}</p>
-                <small class="text-muted">Пользователь #${review.user_id}</small>
-            </div>
-        </div>
-    `).join('');
-}
-
-function generateStars(rating) {
-    let stars = '';
-    for (let i = 1; i <= 5; i++) {
-        if (i <= rating) {
-            stars += '<i class="fas fa-star text-warning"></i>';
-        } else {
-            stars += '<i class="far fa-star text-warning"></i>';
+    const bookId = getBookIdFromUrl();
+    
+    // Куки с access_token помечены HttpOnly, поэтому фронт не может их прочитать.
+    // Авторизация для рецензий будет происходить на бэкенде по куке автоматически.
+    
+    // Загрузка информации о книге
+    async function loadBookInfo() {
+        if (!bookId) {
+            console.error('Неверный ID книги');
+            showError('Неверный ID книги');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/books/${bookId}`);
+            if (response.ok) {
+                const currentBook = await response.json();
+                console.log('Загружена книга:', currentBook);
+                
+                // Обновляем заголовок страницы
+                document.title = `${currentBook.title} - Онлайн библиотека`;
+                
+            } else if (response.status === 404) {
+                console.error('Книга не найдена');
+                showError('Книга не найдена');
+            } else {
+                console.error('Ошибка загрузки книги:', response.status);
+                showError('Ошибка загрузки информации о книге');
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки информации о книге:', error);
+            showError('Ошибка загрузки информации о книге');
         }
     }
-    return stars;
-}
-
-// Review form submission
-document.getElementById('reviewFormElement').addEventListener('submit', function(e) {
-    e.preventDefault();
     
-    const reviewData = {
-        book_id: {{ book_id }},
-        rating: parseInt(document.getElementById('reviewRating').value),
-        title: document.getElementById('reviewTitle').value,
-        content: document.getElementById('reviewContent').value
-    };
-    
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Для отправки отзыва необходимо войти в систему');
-        return;
+    // Показать ошибку
+    function showError(message) {
+        const container = document.getElementById('reviewsContainer');
+        if (container) {
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <h4><i class="bi bi-exclamation-triangle"></i> ${message}</h4>
+                    <p>Книга с ID ${bookId} не существует или была удалена.</p>
+                    <a href="/catalog" class="btn btn-primary">Вернуться в каталог</a>
+                </div>
+            `;
+        }
     }
     
-    fetch('/api/books/{{ book_id }}/reviews', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(reviewData)
-    })
-    .then(response => {
-        if (response.ok) {
-            alert('Отзыв успешно отправлен!');
-            document.getElementById('reviewFormElement').reset();
+    // Загрузка рецензий
+    async function loadReviews() {
+        if (!bookId) {
+            console.error('Неверный ID книги для загрузки рецензий');
+            return;
+        }
+        
+        const container = document.getElementById('reviewsContainer');
+        if (!container) return;
+        
+        try {
+            const response = await fetch(`/api/books/${bookId}/reviews`);
+            
+            if (response.ok) {
+                const reviews = await response.json();
+                const reviewsCount = document.getElementById('reviewsCount');
+                if (reviewsCount) {
+                    reviewsCount.textContent = reviews.length;
+                }
+                
+                if (reviews.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-4">
+                            <i class="bi bi-chat" style="font-size: 3rem; color: #6c757d;"></i>
+                            <h5 class="mt-3">Рецензий пока нет</h5>
+                            <p class="text-muted">Будьте первым, кто оставит рецензию!</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                reviews.forEach(review => {
+                    const date = new Date(review.created_at);
+                    const formattedDate = date.toLocaleDateString('ru-RU', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric'
+                    });
+                    
+                    html += `
+                        <div class="border-bottom pb-3 mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">${review.title || 'Рецензия без названия'}</h6>
+                                <div class="text-warning">
+                                    ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                                </div>
+                            </div>
+                            <p class="mb-2">${review.content}</p>
+                            <small class="text-muted">
+                                <i class="bi bi-clock"></i> ${formattedDate}
+                                ${review.user && review.user.username ? ` | <i class="bi bi-person"></i> ${review.user.username}` : ''}
+                            </small>
+                        </div>
+                    `;
+                });
+                
+                container.innerHTML = html;
+            } else if (response.status === 404) {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> Книга не найдена, рецензии недоступны.
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки рецензий:', error);
+            container.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Не удалось загрузить рецензии.
+                </div>
+            `;
+        }
+    }
+    
+    // Добавление рецензии
+    const addReviewForm = document.getElementById('addReviewForm');
+    if (addReviewForm) {
+        addReviewForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!bookId) {
+                showMessage('Неверный ID книги', 'danger');
+                return;
+            }
+            
+            const rating = document.querySelector('input[name="rating"]:checked')?.value;
+            const title = document.getElementById('reviewTitle').value.trim();
+            const content = document.getElementById('reviewContent').value.trim();
+            
+            if (!rating || !content) {
+                showMessage('Пожалуйста, поставьте оценку и напишите текст рецензии', 'warning');
+                return;
+            }
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            try {
+                submitBtn.disabled = true;
+                
+                // Данные для отправки
+                const reviewData = {
+                    rating: parseInt(rating),
+                    title: title || '',
+                    content: content,
+                    book_id: bookId
+                };
+                
+                console.log('📤 Отправляю рецензию:', reviewData);
+                
+                // Отправляем запрос, куки (включая access_token) браузер добавит сам
+                const response = await fetch(`/api/books/${bookId}/reviews`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify(reviewData)
+                });
+                
+                console.log('📥 Ответ сервера:', response.status);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    console.log('✅ Рецензия добавлена:', result);
+                    
+                    showMessage('✅ Рецензия успешно добавлена!', 'success');
+                    
+                    // Сбрасываем форму
+                    document.getElementById('addReviewForm').reset();
+                    
+                    // Перезагружаем список рецензий
+                    setTimeout(() => {
+                        loadReviews();
+                    }, 1000);
+                    
+                } else {
+                    let errorText = 'Неизвестная ошибка';
+                    try {
+                        const errorData = await response.json();
+                        errorText = errorData.detail || JSON.stringify(errorData);
+                        console.error('❌ Ошибка сервера:', errorData);
+                    } catch (e) {
+                        errorText = await response.text().catch(() => 'Не удалось получить текст ошибки');
+                    }
+                    
+                    // Обработка ошибок авторизации
+                    if (response.status === 401) {
+                        showMessage('❌ Сессия истекла. Пожалуйста, войдите заново.', 'danger');
+                        setTimeout(() => window.location.href = '/login', 3000);
+                    } else if (response.status === 403) {
+                        showMessage('❌ У вас нет прав для добавления рецензий.', 'danger');
+                    } else if (response.status === 400 && errorText.includes('уже оставляли')) {
+                        showMessage('❌ Вы уже оставляли рецензию на эту книгу.', 'warning');
+                    } else {
+                        showMessage(`❌ Ошибка: ${errorText}`, 'danger');
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Ошибка добавления рецензии:', error);
+                showMessage(`❌ Ошибка сети: ${error.message}`, 'danger');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    }
+    
+    // Функция для отображения сообщений
+    function showMessage(message, type = 'info') {
+        // Удаляем старые сообщения
+        const oldMessages = document.querySelectorAll('.alert-message');
+        oldMessages.forEach(msg => msg.remove());
+        
+        // Создаем новое сообщение
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-message alert-dismissible fade show position-fixed`;
+        alertDiv.style.top = '20px';
+        alertDiv.style.right = '20px';
+        alertDiv.style.zIndex = '9999';
+        alertDiv.style.minWidth = '300px';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        // Автоматически скрываем через 5 секунд
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+    
+    // Вспомогательные функции
+    function startReading() {
+        if (!bookId) {
+            alert('ID книги не определен');
+            return;
+        }
+        alert('Функция чтения онлайн будет реализована позже. ID книги: ' + bookId);
+    }
+    
+    // Инициализация
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 Загружена страница книги. ID:', bookId);
+        console.log(' Пользователь авторизован:', document.body.getAttribute('data-user-authenticated'));
+        console.log('👑 Роль пользователя:', document.body.getAttribute('data-user-role'));
+        
+        if (bookId) {
+            loadBookInfo();
             loadReviews();
         } else {
-            return response.json().then(data => {
-                throw new Error(data.detail || 'Ошибка при отправке отзыва');
-            });
+            console.error('❌ Не удалось получить ID книги из URL');
+            const container = document.getElementById('reviewsContainer');
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <h4><i class="bi bi-exclamation-triangle"></i> Ошибка</h4>
+                        <p>Неверный адрес страницы.</p>
+                        <a href="/catalog" class="btn btn-primary">Вернуться в каталог</a>
+                    </div>
+                `;
+            }
         }
-    })
-    .catch(error => {
-        alert(error.message);
     });
-});
-
-function addToFavorites(bookId) {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Для добавления в избранное необходимо войти в систему');
-        return;
-    }
-    
-    // This would need to be implemented in the API
-    alert('Функция добавления в избранное будет доступна в следующей версии');
-}
-
-function downloadBook(bookId) {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Для скачивания книг необходимо войти в систему');
-        return;
-    }
-    
-    // This would need to be implemented in the API
-    alert('Функция скачивания будет доступна в следующей версии');
-}
-
-function readOnline(bookId) {
-    const token = localStorage.getItem('token');
-    if (!token) {
-        alert('Для чтения онлайн необходимо войти в систему');
-        return;
-    }
-    
-    // This would need to be implemented in the API
-    alert('Функция онлайн-чтения будет доступна в следующей версии');
-}
 </script>
 {% endblock %}

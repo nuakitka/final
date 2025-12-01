@@ -1,110 +1,237 @@
 {% extends "base.html" %}
 
-{% block title %}Регистрация - Онлайн-библиотека{% endblock %}
+{% block title %}Регистрация - Онлайн библиотека{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="text-center">Регистрация</h3>
-            </div>
-            <div class="card-body">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-body p-5">
+                <h2 class="text-center mb-4">Создать аккаунт</h2>
+                
+                <!-- Блок для отображения ошибок -->
+                <div id="errorAlert" class="alert alert-danger d-none" role="alert">
+                    <span id="errorText"></span>
+                </div>
+
+                <!-- Блок для успешных сообщений -->
+                <div id="successAlert" class="alert alert-success d-none" role="alert">
+                    <span id="successText"></span>
+                </div>
+                
                 <form id="registerForm">
                     <div class="mb-3">
-                        <label for="username" class="form-label">Имя пользователя:</label>
-                        <input type="text" class="form-control" id="username" required>
-                        <div class="form-text">Уникальное имя для входа в систему</div>
+                        <label for="username" class="form-label">Имя пользователя *</label>
+                        <input type="text" class="form-control" id="username" name="username" required>
+                        <div class="form-text">От 3 до 50 символов, только буквы, цифры и _</div>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="email" class="form-label">Email:</label>
-                        <input type="email" class="form-control" id="email" required>
+                        <label for="email" class="form-label">Email *</label>
+                        <input type="email" class="form-control" id="email" name="email" required>
+                        <div class="form-text">На этот email придут уведомления</div>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="fullName" class="form-label">Полное имя:</label>
-                        <input type="text" class="form-control" id="fullName">
+                        <label for="full_name" class="form-label">Полное имя</label>
+                        <input type="text" class="form-control" id="full_name" name="full_name">
+                        <div class="form-text">Как к вам обращаться</div>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="password" class="form-label">Пароль:</label>
-                        <input type="password" class="form-control" id="password" required>
+                        <label for="password" class="form-label">Пароль *</label>
+                        <input type="password" class="form-control" id="password" name="password" required 
+                               pattern=".{8,}" 
+                               title="Пароль должен содержать минимум 8 символов">
                         <div class="form-text">Минимум 8 символов</div>
                     </div>
+                    
                     <div class="mb-3">
-                        <label for="confirmPassword" class="form-label">Подтвердите пароль:</label>
-                        <input type="password" class="form-control" id="confirmPassword" required>
+                        <label for="confirm_password" class="form-label">Подтвердите пароль *</label>
+                        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
                     </div>
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="agreeTerms" required>
-                        <label class="form-check-label" for="agreeTerms">
-                            Я согласен с <a href="#" onclick="showTerms()">условиями использования</a>
+                    
+                    <div class="form-check mb-4">
+                        <input class="form-check-input" type="checkbox" id="terms" name="terms" required>
+                        <label class="form-check-label" for="terms">
+                            Я согласен с <a href="#" class="text-decoration-none">условиями использования</a> и 
+                            <a href="#" class="text-decoration-none">политикой конфиденциальности</a>
                         </label>
                     </div>
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
-                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 py-2" id="submitBtn">
+                        <span id="submitText">Зарегистрироваться</span>
+                        <div id="submitSpinner" class="spinner-border spinner-border-sm d-none" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </button>
                 </form>
+                
                 <div class="text-center mt-3">
-                    <p>Уже есть аккаунт? <a href="/login">Войти</a></p>
+                    <p class="mb-0">Уже есть аккаунт? <a href="/login" class="text-decoration-none">Войти</a></p>
                 </div>
             </div>
         </div>
     </div>
 </div>
-{% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
-document.getElementById('registerForm').addEventListener('submit', function(e) {
+// Функции для показа/скрытия уведомлений
+function showError(message) {
+    const errorAlert = document.getElementById('errorAlert');
+    const errorText = document.getElementById('errorText');
+    errorText.textContent = message;
+    errorAlert.classList.remove('d-none');
+    
+    // Автоматически скрыть через 5 секунд
+    setTimeout(() => {
+        hideError();
+    }, 5000);
+}
+
+function hideError() {
+    document.getElementById('errorAlert').classList.add('d-none');
+}
+
+function showSuccess(message) {
+    const successAlert = document.getElementById('successAlert');
+    const successText = document.getElementById('successText');
+    successText.textContent = message;
+    successAlert.classList.remove('d-none');
+}
+
+function hideSuccess() {
+    document.getElementById('successAlert').classList.add('d-none');
+}
+
+function setLoading(loading) {
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitText');
+    const submitSpinner = document.getElementById('submitSpinner');
+    
+    if (loading) {
+        submitBtn.disabled = true;
+        submitText.textContent = 'Регистрация...';
+        submitSpinner.classList.remove('d-none');
+    } else {
+        submitBtn.disabled = false;
+        submitText.textContent = 'Зарегистрироваться';
+        submitSpinner.classList.add('d-none');
+    }
+}
+
+// Валидация формы
+function validateForm(data) {
+    hideError();
+    hideSuccess();
+
+    // Проверка имени пользователя
+    if (data.username.length < 3 || data.username.length > 50) {
+        showError('Имя пользователя должно быть от 3 до 50 символов');
+        return false;
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(data.username)) {
+        showError('Имя пользователя может содержать только буквы, цифры и символ _');
+        return false;
+    }
+    
+    // Проверка пароля
+    if (data.password.length < 8) {
+        showError('Пароль должен содержать минимум 8 символов');
+        return false;
+    }
+    
+    // Проверка подтверждения пароля
+    if (data.password !== document.getElementById('confirm_password').value) {
+        showError('Пароли не совпадают');
+        return false;
+    }
+    
+    return true;
+}
+
+// Обработчик формы
+document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    const password = document.getElementById('password').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
-    
-    if (password !== confirmPassword) {
-        alert('Пароли не совпадают');
-        return;
-    }
-    
-    if (password.length < 8) {
-        alert('Пароль должен содержать минимум 8 символов');
-        return;
-    }
-    
-    const registerData = {
-        username: document.getElementById('username').value,
-        email: document.getElementById('email').value,
-        full_name: document.getElementById('fullName').value,
-        password: password
+    const formData = {
+        username: document.getElementById('username').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        full_name: document.getElementById('full_name').value.trim() || null,
+        password: document.getElementById('password').value
     };
     
-    fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(registerData)
-    })
-    .then(response => {
+    console.log('Отправляемые данные:', formData);
+    
+    // Валидация
+    if (!validateForm(formData)) {
+        return;
+    }
+    
+    setLoading(true);
+    
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
         if (response.ok) {
-            return response.json();
+            const result = await response.json();
+            showSuccess('Регистрация успешна! Перенаправляем на страницу входа...');
+            setTimeout(() => {
+                window.location.href = '/login?registered=true';
+            }, 2000);
         } else {
-            return response.json().then(data => {
-                throw new Error(data.detail || 'Ошибка регистрации');
-            });
+            const errorData = await response.json();
+            console.error('Ошибка регистрации:', errorData);
+            
+            let errorMessage = 'Ошибка регистрации';
+            
+            if (errorData.detail) {
+                if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (Array.isArray(errorData.detail)) {
+                    // Ошибки валидации Pydantic
+                    errorMessage = errorData.detail.map(err => 
+                        `${err.loc ? err.loc.join('.') + ': ' : ''}${err.msg}`
+                    ).join(', ');
+                }
+            }
+            
+            showError(errorMessage);
         }
-    })
-    .then(data => {
-        alert('Регистрация прошла успешно! Теперь вы можете войти в систему.');
-        window.location.href = '/login';
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert(error.message);
-    });
+    } catch (error) {
+        console.error('Ошибка:', error);
+        showError('Произошла ошибка при регистрации: ' + error.message);
+    } finally {
+        setLoading(false);
+    }
 });
 
-function showTerms() {
-    alert('Условия использования:\n\n1. Используйте библиотеку только в законных целях\n2. Уважайте авторские права\n3. Не распространяйте контент без разрешения\n4. Соблюдайте правила поведения в сообществе');
+// Реальная валидация паролей
+document.getElementById('confirm_password').addEventListener('input', function() {
+    const password = document.getElementById('password').value;
+    const confirmPassword = this.value;
+    
+    if (confirmPassword && password !== confirmPassword) {
+        this.classList.add('is-invalid');
+    } else {
+        this.classList.remove('is-invalid');
+    }
+});
+
+// Показать успешное сообщение если перешли с флагом registered
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('registered') === 'true') {
+    showSuccess('Регистрация успешна! Теперь вы можете войти в систему.');
 }
 </script>
+{% endblock %}
+
 {% endblock %}

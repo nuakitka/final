@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Numeric, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey, Numeric, JSON, Table
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import TSVECTOR
@@ -16,11 +16,10 @@ class Category(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Self-referential relationship for hierarchical categories
-    parent = relationship("Category", remote_side=[id])
-    children = relationship("Category")
+    parent = relationship("Category", remote_side=[id], back_populates="children")
+    children = relationship("Category", back_populates="parent")
     books = relationship("Book", secondary="book_categories", back_populates="categories")
-
-
+    
 class Author(Base):
     __tablename__ = "authors"
 

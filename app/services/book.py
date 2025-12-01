@@ -147,7 +147,8 @@ def create_review(db: Session, review: ReviewCreate, user_id: int) -> Review:
 
 
 def get_book_reviews(db: Session, book_id: int, skip: int = 0, limit: int = 50) -> List[Review]:
+    """Retrieves approved reviews for a specific book."""
     return db.query(Review).filter(
-        Review.book_id == book_id,
-        Review.is_approved == True
+        Review.book_id == book_id, 
+        Review.is_approved == True # Only show approved reviews by default
     ).offset(skip).limit(limit).all()
