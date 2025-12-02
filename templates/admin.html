@@ -13,7 +13,7 @@
         <!-- Сообщение о недостаточных правах -->
         <div id="accessDeniedMessage" class="alert alert-danger d-none">
             <h4><i class="bi bi-shield-exclamation"></i> Доступ запрещен</h4>
-            <p>Для доступа к админ-панели требуются права администратора.</p>
+            <p>Для доступа к админ-панели требуются права администратора или библиотекаря.</p>
             <a href="/" class="btn btn-primary">На главную</a>
         </div>
 
@@ -173,12 +173,12 @@
 {% endblock content %}
 {% block extra_js %}
 <script>
-// Проверка прав доступа
+// Проверка прав доступа (админ или библиотекарь)
 function checkAdminAccess() {
     const userRole = document.body.getAttribute('data-user-role');
     const isAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
-    
-    if (!isAuthenticated || userRole !== 'admin') {
+
+    if (!isAuthenticated || (userRole !== 'admin' && userRole !== 'librarian')) {
         // Показать сообщение об ошибке
         document.getElementById('accessDeniedMessage').classList.remove('d-none');
         document.getElementById('adminContent').style.display = 'none';

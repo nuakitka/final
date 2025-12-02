@@ -430,8 +430,8 @@ async function toggleFavorite(bookId, source) {
 
     if (!button) return;
 
-    const icon = button.querySelector('i');
-    const isCurrentlyFavorite = icon && icon.classList.contains('fas');
+    // Считаем избранным, если кнопка уже в "залитом" состоянии
+    const isCurrentlyFavorite = button.classList.contains('btn-danger');
 
     try {
         if (isCurrentlyFavorite) {
@@ -439,23 +439,17 @@ async function toggleFavorite(bookId, source) {
             await apiCall(`/api/users/me/favorites/${bookId}`, {
                 method: 'DELETE'
             });
-            if (icon) {
-                icon.classList.remove('fas');
-                icon.classList.add('far');
-            }
             button.classList.remove('btn-danger');
             button.classList.add('btn-outline-danger');
+            button.textContent = 'В избранное';
         } else {
             // Добавляем в избранное
             await apiCall(`/api/users/me/favorites/${bookId}`, {
                 method: 'POST'
             });
-            if (icon) {
-                icon.classList.remove('far');
-                icon.classList.add('fas');
-            }
             button.classList.remove('btn-outline-danger');
             button.classList.add('btn-danger');
+            button.textContent = 'В избранном';
         }
     } catch (error) {
         console.error('Ошибка обновления избранного:', error);

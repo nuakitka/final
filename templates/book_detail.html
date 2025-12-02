@@ -348,6 +348,7 @@
                     return;
                 }
                 
+                const isAdmin = document.body.getAttribute('data-user-role') === 'admin';
                 let html = '';
                 reviews.forEach(review => {
                     const date = new Date(review.created_at);
@@ -360,10 +361,17 @@
                     html += `
                         <div class="border-bottom pb-3 mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-2">
-                                <h6 class="mb-0">${review.title || 'Рецензия без названия'}</h6>
-                                <div class="text-warning">
-                                    ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                                <div>
+                                    <h6 class="mb-0">${review.title || 'Рецензия без названия'}</h6>
+                                    <div class="text-warning">
+                                        ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                                    </div>
                                 </div>
+                                ${isAdmin ? `
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteReview(${review.id})">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                ` : ''}
                             </div>
                             <p class="mb-2">${review.content}</p>
                             <small class="text-muted">
@@ -457,19 +465,24 @@
                 } else {
                     let errorText = 'Неизвестная ошибка';
                     try {
-                        const errorData = await response.json();
+                        const errorData = await response.json().catch(() => ({}));
                         errorText = errorData.detail || JSON.stringify(errorData);
                         console.error('❌ Ошибка сервера:', errorData);
                     } catch (e) {
                         errorText = await response.text().catch(() => 'Не удалось получить текст ошибки');
                     }
                     
-                    // Обработка ошибок авторизации
+                    // Обработка ошибок авторизации / прав
                     if (response.status === 401) {
                         showMessage('❌ Сессия истекла. Пожалуйста, войдите заново.', 'danger');
                         setTimeout(() => window.location.href = '/login', 3000);
                     } else if (response.status === 403) {
-                        showMessage('❌ У вас нет прав для добавления рецензий.', 'danger');
+                        if (errorText.includes('после прочтения книги')) {
+                            // Пользователь ещё не дочитал книгу
+                            showMessage('Чтобы оставить рецензию, сначала прочитайте книгу до конца в ридере.', 'warning');
+                        } else {
+                            showMessage('❌ У вас нет прав для добавления рецензий.', 'danger');
+                        }
                     } else if (response.status === 400 && errorText.includes('уже оставляли')) {
                         showMessage('❌ Вы уже оставляли рецензию на эту книгу.', 'warning');
                     } else {
@@ -512,6 +525,31 @@
                 alertDiv.remove();
             }
         }, 5000);
+    }
+    
+    // Удаление рецензии
+    async function deleteReview(reviewId) {
+        if (!confirm('Удалить эту рецензию?')) return;
+
+        try {
+            const response = await fetch(`/api/admin/reviews/${reviewId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                const msg = data.detail || 'Не удалось удалить рецензию';
+                showMessage(`❌ ${msg}`, 'danger');
+                return;
+            }
+
+            showMessage('✅ Рецензия удалена', 'success');
+            loadReviews();
+        } catch (error) {
+            console.error('Ошибка удаления рецензии:', error);
+            showMessage('❌ Ошибка при удалении рецензии', 'danger');
+        }
     }
     
     // Инициализация

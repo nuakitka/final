@@ -18,14 +18,14 @@
             </p>
         {% endif %}
 
+        <div class="mb-2">
+            <a href="/book/{{ book.id }}" class="btn btn-outline-secondary btn-sm me-2">К описанию</a>
+            {% if file_url %}
+                <a href="{{ file_url }}" class="btn btn-outline-primary btn-sm me-2" target="_blank">Открыть в новой вкладке</a>
+            {% endif %}
+        </div>
+
         {% if request.state.user.is_authenticated %}
-            <div class="mb-2">
-                <a href="/book/{{ book.id }}" class="btn btn-outline-secondary btn-sm me-2">К описанию</a>
-                {% if file_url %}
-                    <a href="{{ file_url }}" class="btn btn-outline-primary btn-sm me-2" target="_blank">Открыть в новой вкладке</a>
-                {% endif %}
-                <button type="button" class="btn btn-success btn-sm" onclick="markBookCompleted()">Отметить как прочитанное</button>
-            </div>
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 <label for="readingProgress" class="form-label mb-0 small">Прогресс чтения:</label>
                 <input type="range" id="readingProgress" min="0" max="100" value="0" oninput="updateProgressLabel(this.value)" style="width: 200px;">
@@ -35,36 +35,20 @@
         {% endif %}
     </div>
 
-    {% if request.state.user.is_authenticated %}
-        <div class="col-12" style="height: 80vh;">
-            {% if file_url %}
-                <iframe src="{{ file_url }}" style="width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
-            {% else %}
-                <div class="alert alert-warning">
-                    Файл книги не найден.
-                </div>
-            {% endif %}
-        </div>
-    {% endif %}
+    <div class="col-12" style="height: 80vh;">
+        {% if file_url %}
+            <iframe src="{{ file_url }}" style="width: 100%; height: 100%; border: none;" allowfullscreen></iframe>
+        {% else %}
+            <div class="alert alert-warning">
+                Файл книги не найден.
+            </div>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-function markBookCompleted() {
-    // Не даём неавторизованным пользователям дергать API прогресса
-    if (!window.currentUser) {
-        alert('Чтобы отмечать прогресс чтения, войдите в систему.');
-        return;
-    }
-    const slider = document.getElementById('readingProgress');
-    if (slider) {
-        slider.value = 100;
-        updateProgressLabel(100);
-    }
-    saveReadingProgress(true);
-}
-
 function updateProgressLabel(value) {
     const label = document.getElementById('readingProgressValue');
     if (label) {
@@ -72,11 +56,7 @@ function updateProgressLabel(value) {
     }
 }
 
-function saveReadingProgress(forceCompleted = false) {
-    if (!window.currentUser) {
-        alert('Чтобы сохранять прогресс, войдите в систему.');
-        return;
-    }
+function saveReadingProgress() {
     const bookId = {{ book.id }};
     const slider = document.getElementById('readingProgress');
     const value = slider ? parseInt(slider.value, 10) || 0 : 0;
@@ -85,7 +65,7 @@ function saveReadingProgress(forceCompleted = false) {
         progress_percentage: value,
     };
 
-    if (forceCompleted || value === 100) {
+    if (value === 100) {
         payload.is_completed = true;
     }
 

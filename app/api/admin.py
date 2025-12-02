@@ -285,11 +285,43 @@ def admin_delete_book(
     book_id: int,
     db: Session = Depends(get_db)
 ):
-    """Удалить книгу (админ)"""
-    check_admin(request)
+    """Удалить книгу (админ/библиотекарь)"""
+    check_admin_or_librarian(request)
     if not delete_book(db, book_id):
         raise HTTPException(status_code=404, detail="Book not found")
     return {"message": "Book deleted successfully"}
+
+
+@router.delete("/reviews/{review_id}")
+def admin_delete_review(
+    request: Request,
+    review_id: int,
+    db: Session = Depends(get_db)
+):
+    """Удалить рецензию (только админ) и пересчитать рейтинг книги."""
+    check_admin(request)
+
+    review = db.query(Review).filter(Review.id == review_id).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Review not found")
+
+    book_id = review.book_id
+
+    db.delete(review)
+    db.commit()
+
+    # Пересчитываем средний рейтинг книги после удаления рецензии
+    if book_id:
+        book = db.query(BookModel).filter(BookModel.id == book_id).first()
+        if book:
+            avg_rating = db.query(func.avg(Review.rating)).filter(
+                Review.book_id == book_id,
+                Review.is_approved == True
+            ).scalar()
+            book.rating = avg_rating or 0.0
+            db.commit()
+
+    return {"detail": "Review deleted"}
 
 
 @router.patch("/users/{user_id}/role", response_model=User)
