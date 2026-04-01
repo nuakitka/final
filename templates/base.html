@@ -11,7 +11,9 @@
 </head>
 <body data-user-authenticated="{{ 'true' if request.state.user and request.state.user.is_authenticated else 'false' }}"
       data-user-role="{{ request.state.user.role if request.state.user and request.state.user.is_authenticated else '' }}"
-      data-user-username="{{ request.state.user.username if request.state.user and request.state.user.is_authenticated else '' }}">
+      data-user-username="{{ request.state.user.username if request.state.user and request.state.user.is_authenticated else '' }}"
+      data-user-full-name="{{ request.state.user.full_name if request.state.user and request.state.user.is_authenticated and request.state.user.full_name else '' }}"
+      data-user-created-at="{{ request.state.user.created_at.isoformat() if request.state.user and request.state.user.is_authenticated and request.state.user.created_at else '' }}">
     
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">

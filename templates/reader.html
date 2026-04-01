@@ -14,7 +14,9 @@
         <h1 class="h4">{{ book.title }}</h1>
         {% if book.authors %}
             <p class="text-muted mb-1">
-                {{ book.authors | map(attribute='first_name') | list | join(' ') }}
+                {% for author in book.authors %}
+                    {{ author.first_name }} {{ author.last_name }}{% if not loop.last %}, {% endif %}
+                {% endfor %}
             </p>
         {% endif %}
 
@@ -49,6 +51,36 @@
 
 {% block extra_js %}
 <script>
+function loadCurrentProgress() {
+    const slider = document.getElementById('readingProgress');
+    if (!slider) return;
+
+    fetch('/api/users/me/reading-sessions?active=true&limit=100', {
+        credentials: 'include'
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Не удалось получить прогресс');
+        }
+        return response.json();
+    })
+    .then(data => {
+        const sessions = Array.isArray(data.sessions) ? data.sessions : [];
+        const bookId = {{ book.id }};
+        const currentSession = sessions.find(session => session.book && session.book.id === bookId);
+        if (!currentSession) {
+            return;
+        }
+
+        const progress = currentSession.progress_percentage || 0;
+        slider.value = progress;
+        updateProgressLabel(progress);
+    })
+    .catch(error => {
+        console.error('Ошибка загрузки текущего прогресса:', error);
+    });
+}
+
 function updateProgressLabel(value) {
     const label = document.getElementById('readingProgressValue');
     if (label) {
@@ -90,5 +122,10 @@ function saveReadingProgress() {
         console.error('Ошибка обновления прогресса чтения:', error);
     });
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateProgressLabel(document.getElementById('readingProgress')?.value || 0);
+    loadCurrentProgress();
+});
 </script>
 {% endblock %}

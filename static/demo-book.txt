@@ -1,0 +1,5 @@
+Demo book for smoke testing the online library application.
+
+This file is intentionally simple so the reader page, download link,
+progress tracking, and review flow can be tested end-to-end without
+depending on external assets.

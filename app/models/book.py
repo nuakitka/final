@@ -59,7 +59,7 @@ class Book(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Full-text search vector
-    search_vector = Column(TSVECTOR)
+    search_vector = Column(Text().with_variant(TSVECTOR(), "postgresql"))
 
     # Relationships
     categories = relationship("Category", secondary="book_categories", back_populates="books")

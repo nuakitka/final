@@ -2,6 +2,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models.book import ReadingSession, Review, Book
 from app.models.user import User
+from datetime import datetime
+from typing import Optional
 
 
 def get_user_reading_stats(db: Session, user_id: int):
@@ -30,12 +32,15 @@ def get_user_reading_stats(db: Session, user_id: int):
         # Время чтения (в часах) - упрощенная версия
         reading_time_hours = completed_books * 2 + reading_books * 1
 
+        user = db.query(User).filter(User.id == user_id).first()
+        favorites_count = len(user.favorites) if user else 0
+
         return {
             "completed_books": completed_books,
             "reading_books": reading_books,
             "total_pages": total_pages,
             "reviews_count": reviews_count,
-            "favorites_count": 0,  # Временно
+            "favorites_count": favorites_count,
             "reading_time_hours": reading_time_hours
         }
     except Exception as e:
@@ -86,17 +91,23 @@ def update_reading_progress(
     user_id: int,
     book_id: int,
     progress_percentage: int,
-    pages_read: int | None = None,
-    is_completed: bool | None = None,
+    pages_read: Optional[int] = None,
+    is_completed: Optional[bool] = None,
 ) -> ReadingSession:
     """Обновить прогресс чтения книги для пользователя."""
     session = ensure_reading_session(db, user_id, book_id)
 
-    session.progress_percentage = max(0, min(100, progress_percentage))
+    normalized_progress = max(0, min(100, progress_percentage))
+    session.progress_percentage = normalized_progress
     if pages_read is not None:
         session.pages_read = max(0, pages_read)
+
+    completed = normalized_progress >= 100
     if is_completed is not None:
-        session.is_completed = is_completed
+        completed = is_completed
+
+    session.is_completed = completed
+    session.end_time = datetime.utcnow() if completed else None
 
     db.add(session)
     db.commit()

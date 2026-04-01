@@ -173,12 +173,26 @@
 {% endblock content %}
 {% block extra_js %}
 <script>
+function getCurrentUserRole() {
+    return document.body.getAttribute('data-user-role');
+}
+
+function isAuthenticated() {
+    return document.body.getAttribute('data-user-authenticated') === 'true';
+}
+
+function isAdmin() {
+    return getCurrentUserRole() === 'admin';
+}
+
+function isStaff() {
+    const role = getCurrentUserRole();
+    return role === 'admin' || role === 'librarian';
+}
+
 // Проверка прав доступа (админ или библиотекарь)
 function checkAdminAccess() {
-    const userRole = document.body.getAttribute('data-user-role');
-    const isAuthenticated = document.body.getAttribute('data-user-authenticated') === 'true';
-
-    if (!isAuthenticated || (userRole !== 'admin' && userRole !== 'librarian')) {
+    if (!isAuthenticated() || !isStaff()) {
         // Показать сообщение об ошибке
         document.getElementById('accessDeniedMessage').classList.remove('d-none');
         document.getElementById('adminContent').style.display = 'none';
@@ -230,7 +244,12 @@ function showAccessDenied() {
 // Показать секцию
 function showSection(sectionName) {
     if (!checkAdminAccess()) return;
-    
+
+    if (sectionName === 'users' && !isAdmin()) {
+        showMessage('Управление пользователями доступно только администратору', 'warning');
+        sectionName = 'books';
+    }
+
     // Скрыть все секции
     document.getElementById('usersSection').style.display = 'none';
     document.getElementById('booksSection').style.display = 'none';
@@ -289,7 +308,13 @@ async function loadUsers() {
             });
             table.innerHTML = html;
         } else if (response.status === 403) {
-            showAccessDenied();
+            document.getElementById('usersTable').innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted">
+                        Управление пользователями доступно только администратору.
+                    </td>
+                </tr>
+            `;
         }
     } catch (error) {
         console.error('Ошибка загрузки пользователей:', error);
@@ -521,8 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Проверяем доступ при загрузке
     if (checkAdminAccess()) {
         loadAdminStats();
-        // По умолчанию показываем секцию пользователей
-        showSection('users');
+        showSection(isAdmin() ? 'users' : 'books');
     }
 });
 </script>

@@ -1,23 +1,32 @@
-from fastapi import FastAPI, Request, Response, Depends
+from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
+from contextlib import asynccontextmanager
 from typing import Dict, Any
 from sqlalchemy.orm import Session
 from app.api import auth, books, users, admin 
 from app.core.config import settings
 from app.core.security import verify_token
-from app.models import get_db, SessionLocal
+from app.models import get_db, SessionLocal, init_db
 from app.services.book import get_book
 from app.models.user import User as UserModel
 from app.services.user_stats import ensure_reading_session
 
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="Online Library API",
     description="API for managing online library system",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Middleware
@@ -30,6 +39,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+def _is_authenticated(request: Request) -> bool:
+    return bool(getattr(request.state, "user", {}).get("is_authenticated"))
+
+
+def _is_staff(request: Request) -> bool:
+    return getattr(request.state, "user", {}).get("role") in {"admin", "librarian"}
+
 # Custom Middleware для добавления пользователя в запрос
 @app.middleware("http")
 async def add_user_to_request(request: Request, call_next):
@@ -38,7 +55,11 @@ async def add_user_to_request(request: Request, call_next):
         "is_authenticated": False, 
         "username": None,
         "role": None,
-        "user_id": None
+        "user_id": None,
+        "email": None,
+        "full_name": None,
+        "created_at": None,
+        "is_active": False,
     }
     
     # Проверяем токен из cookie
@@ -60,7 +81,10 @@ async def add_user_to_request(request: Request, call_next):
                             "username": user.username,
                             "role": user.role,
                             "user_id": user.id,
-                            "email": user.email
+                            "email": user.email,
+                            "full_name": user.full_name,
+                            "created_at": user.created_at,
+                            "is_active": user.is_active,
                         }
                 finally:
                     db.close()
@@ -73,12 +97,6 @@ async def add_user_to_request(request: Request, call_next):
 # Mount static files and templates
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
-
-# Инициализация базы данных
-from app.models import init_db
-@app.on_event("startup")
-async def startup_event():
-    init_db()
 
 # Подключаем API роутеры
 app.include_router(auth.router, prefix="/api/auth", tags=["authentication"])
@@ -103,10 +121,14 @@ async def book_detail(
 ):
     """Страница деталей книги"""
     book = get_book(db, book_id)
-    
+
     if not book:
         # Перенаправляем на каталог если книга не найдена
         return RedirectResponse(url="/catalog")
+
+    book.view_count = (book.view_count or 0) + 1
+    db.commit()
+    db.refresh(book)
 
     # Если запрошено чтение (например, /book/{id}?read=true) и есть файл,
     # показываем встроенный просмотрщик PDF/файла и фиксируем сессию чтения
@@ -175,22 +197,30 @@ async def register_page(request: Request):
 
 @app.get("/profile", response_class=HTMLResponse)
 async def profile_page(request: Request):
+    if not _is_authenticated(request):
+        return RedirectResponse(url="/login", status_code=302)
     return templates.TemplateResponse("profile.html", {"request": request})
 
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_page(request: Request):
+    if not _is_authenticated(request):
+        return RedirectResponse(url="/login", status_code=302)
+    if not _is_staff(request):
+        return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse("admin.html", {"request": request})
 
 @app.get("/admin/add-book", response_class=HTMLResponse)
 async def admin_add_book_page(request: Request):
+    if not _is_authenticated(request):
+        return RedirectResponse(url="/login", status_code=302)
+    if not _is_staff(request):
+        return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse("admin/add_book.html", {"request": request})
 
 @app.get("/logout")
-async def logout(response: Response):
-    response = Response()
+async def logout():
+    response = RedirectResponse(url="/", status_code=302)
     response.delete_cookie("access_token")
-    response.status_code = 302
-    response.headers["Location"] = "/"
     return response
 
 if __name__ == "__main__":

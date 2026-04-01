@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status, Request  
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from typing import List, Optional
@@ -8,8 +8,7 @@ from app.services.book import (
     get_book, get_books, search_books, create_book, update_book, delete_book,
     get_categories, get_authors, create_review, get_book_reviews
 )
-from app.api.auth import get_current_active_user, get_current_user
-from app.core.acl import check_permission, Permission
+from app.api.auth import get_current_active_user
 
 router = APIRouter(tags=["books"])
 
@@ -32,15 +31,17 @@ def get_authors_endpoint(db: Session = Depends(get_db)):
     return get_authors(db)
 
 
+@router.get("", response_model=List[Book])
 @router.get("/", response_model=List[Book])
 def read_books(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
+    sort: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     """Получить список книг (корневой маршрут)."""
     # Public endpoint, no authentication required
-    return get_books(db, skip=skip, limit=limit)
+    return get_books(db, skip=skip, limit=limit, sort=sort)
 
 
 @router.get("/search", response_model=List[Book])
@@ -99,14 +100,13 @@ def read_book(book_id: int, db: Session = Depends(get_db)):
 def create_review_endpoint(
     book_id: int,
     review: ReviewCreate,
-    request: Request,  # Добавьте этот параметр
     db: Session = Depends(get_db),
     current_user = Depends(get_current_active_user)
 ):
     """Создать рецензию для книги"""
     print(f"📝 Начало создания рецензии для книги {book_id}")
     print(f"👤 Текущий пользователь: {current_user.username} (ID: {current_user.id})")
-    print(f"📊 Данные рецензии: {review.dict()}")
+    print(f"📊 Данные рецензии: {review.model_dump()}")
     
     # Check if book exists
     book = get_book(db, book_id)
@@ -147,7 +147,6 @@ def create_review_endpoint(
     
     # Создаем рецензию
     try:
-        # Используем напрямую модель Review
         db_review = Review(
             book_id=book_id,
             user_id=current_user.id,
@@ -163,8 +162,6 @@ def create_review_endpoint(
 
         # После создания рецензии пересчитаем средний рейтинг книги,
         # чтобы он корректно отображался в каталоге и других списках
-        from app.models.book import Book as BookModel
-
         avg_rating = db.query(func.avg(Review.rating)).filter(
             Review.book_id == book_id,
             Review.is_approved == True

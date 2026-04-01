@@ -191,41 +191,95 @@ async function loadFavorites() {
     }
 }
 
+function getCurrentFilters() {
+    return {
+        searchQuery: document.getElementById('searchInput').value.trim(),
+        categoryId: document.getElementById('categoryFilter').value,
+        authorId: document.getElementById('authorFilter').value,
+        language: document.getElementById('languageFilter').value,
+        yearFrom: document.getElementById('yearFrom').value,
+        yearTo: document.getElementById('yearTo').value,
+        favoritesOnly: document.getElementById('favoritesOnly')?.checked || false
+    };
+}
+
+function applyFiltersFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+
+    document.getElementById('searchInput').value = params.get('search') || params.get('query') || '';
+    document.getElementById('categoryFilter').value = params.get('category') || params.get('category_id') || '';
+    document.getElementById('authorFilter').value = params.get('author') || params.get('author_id') || '';
+    document.getElementById('languageFilter').value = params.get('language') || '';
+    document.getElementById('yearFrom').value = params.get('year_min') || '';
+    document.getElementById('yearTo').value = params.get('year_max') || '';
+
+    const favoritesOnly = params.get('favorites') === '1';
+    const favoritesCheckbox = document.getElementById('favoritesOnly');
+    if (favoritesCheckbox) {
+        favoritesCheckbox.checked = favoritesOnly;
+    }
+
+    const advancedFilters = document.getElementById('advancedFilters');
+    if (
+        advancedFilters
+        && (document.getElementById('languageFilter').value
+            || document.getElementById('yearFrom').value
+            || document.getElementById('yearTo').value)
+    ) {
+        advancedFilters.style.display = 'block';
+    }
+
+    const page = parseInt(params.get('page') || '1', 10);
+    currentPage = Number.isNaN(page) || page < 1 ? 1 : page;
+}
+
+function syncCatalogUrl(page = 1) {
+    const filters = getCurrentFilters();
+    const params = new URLSearchParams();
+
+    if (filters.searchQuery) params.set('search', filters.searchQuery);
+    if (filters.categoryId) params.set('category', filters.categoryId);
+    if (filters.authorId) params.set('author', filters.authorId);
+    if (filters.language) params.set('language', filters.language);
+    if (filters.yearFrom) params.set('year_min', filters.yearFrom);
+    if (filters.yearTo) params.set('year_max', filters.yearTo);
+    if (filters.favoritesOnly) params.set('favorites', '1');
+    if (page > 1) params.set('page', String(page));
+
+    const nextUrl = params.toString() ? `/catalog?${params.toString()}` : '/catalog';
+    window.history.replaceState({}, '', nextUrl);
+}
+
 // Поиск книг
 async function searchBooks(page = 1) {
-    const searchQuery = document.getElementById('searchInput').value;
-    const categoryId = document.getElementById('categoryFilter').value;
-    const authorId = document.getElementById('authorFilter').value;
-    const language = document.getElementById('languageFilter').value;
-    const yearFrom = document.getElementById('yearFrom').value;
-    const yearTo = document.getElementById('yearTo').value;
+    const filters = getCurrentFilters();
 
     let url = '/api/books/search?';
     const params = new URLSearchParams({
-        query: searchQuery || '',
+        query: filters.searchQuery || '',
         skip: (page - 1) * booksPerPage,
         limit: booksPerPage
     });
 
-    if (categoryId) params.append('category_id', categoryId);
-    if (authorId) params.append('author_id', authorId);
-    if (language) params.append('language', language);
-    if (yearFrom) params.append('year_min', yearFrom);
-    if (yearTo) params.append('year_max', yearTo);
+    if (filters.categoryId) params.append('category_id', filters.categoryId);
+    if (filters.authorId) params.append('author_id', filters.authorId);
+    if (filters.language) params.append('language', filters.language);
+    if (filters.yearFrom) params.append('year_min', filters.yearFrom);
+    if (filters.yearTo) params.append('year_max', filters.yearTo);
 
     try {
         const response = await fetch(url + params.toString());
         if (response.ok) {
             const books = await response.json();
 
-            const favoritesOnly = document.getElementById('favoritesOnly')?.checked;
-            const filteredBooks = favoritesOnly
+            const filteredBooks = filters.favoritesOnly
                 ? books.filter(b => favoriteBookIds.has(b.id))
                 : books;
 
             displayBooks(filteredBooks);
             currentPage = page;
-            updatePagination();
+            updatePagination(filteredBooks.length);
+            syncCatalogUrl(page);
         }
     } catch (error) {
         console.error('Ошибка поиска книг:', error);
@@ -317,6 +371,34 @@ function clearFilters() {
     searchBooks(1);
 }
 
+function updatePagination(currentCount) {
+    const pagination = document.getElementById('pagination');
+    if (!pagination) return;
+
+    const canGoBack = currentPage > 1;
+    const canGoForward = currentCount === booksPerPage;
+
+    if (!canGoBack && !canGoForward) {
+        pagination.style.display = 'none';
+        return;
+    }
+
+    pagination.style.display = 'block';
+    pagination.innerHTML = `
+        <ul class="pagination justify-content-center">
+            <li class="page-item ${canGoBack ? '' : 'disabled'}">
+                <a class="page-link" href="#" onclick="event.preventDefault(); ${canGoBack ? `searchBooks(${currentPage - 1})` : ''}">Назад</a>
+            </li>
+            <li class="page-item active">
+                <span class="page-link">${currentPage}</span>
+            </li>
+            <li class="page-item ${canGoForward ? '' : 'disabled'}">
+                <a class="page-link" href="#" onclick="event.preventDefault(); ${canGoForward ? `searchBooks(${currentPage + 1})` : ''}">Вперед</a>
+            </li>
+        </ul>
+    `;
+}
+
 function viewBook(bookId) {
     window.location.href = `/book/${bookId}`;
 }
@@ -346,14 +428,18 @@ function toggleFavoriteFromCatalog(bookId, button) {
 
 // Инициализация
 document.addEventListener('DOMContentLoaded', function() {
-    loadFilters();
-    loadFavorites().then(() => {
-        searchBooks(1);
-    }).catch(() => {
-        // Если избранное не загрузилось (не авторизован и т.п.), всё равно грузим книги
-        searchBooks(1);
-    });
-    
+    loadFilters()
+        .then(() => {
+            applyFiltersFromUrl();
+            return loadFavorites();
+        })
+        .catch(() => {
+            favoriteBookIds = new Set();
+        })
+        .finally(() => {
+            searchBooks(currentPage);
+        });
+
     // Поиск при нажатии Enter
     document.getElementById('searchInput').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') {

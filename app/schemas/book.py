@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 
@@ -14,8 +14,7 @@ class Category(CategoryBase):
     is_active: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AuthorBase(BaseModel):
@@ -29,8 +28,7 @@ class Author(AuthorBase):
     id: int
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookBase(BaseModel):
@@ -46,13 +44,14 @@ class BookBase(BaseModel):
 
 
 class BookCreate(BookBase):
-    category_ids: Optional[List[int]] = []
-    author_ids: Optional[List[int]] = []
+    category_ids: List[int] = Field(default_factory=list)
+    author_ids: List[int] = Field(default_factory=list)
 
 
 class BookUpdate(BaseModel):
     title: Optional[str] = None
     subtitle: Optional[str] = None
+    isbn: Optional[str] = None
     description: Optional[str] = None
     publication_year: Optional[int] = None
     language: Optional[str] = None
@@ -65,17 +64,16 @@ class BookUpdate(BaseModel):
 
 class Book(BookBase):
     id: int
-    rating: float
-    download_count: int
-    view_count: int
+    rating: float = 0.0
+    download_count: int = 0
+    view_count: int = 0
     is_active: bool
     is_featured: bool
     created_at: datetime
-    categories: List[Category] = []
-    authors: List[Author] = []
+    categories: List[Category] = Field(default_factory=list)
+    authors: List[Author] = Field(default_factory=list)
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ReviewBase(BaseModel):
@@ -85,7 +83,7 @@ class ReviewBase(BaseModel):
 
 
 class ReviewCreate(ReviewBase):
-    book_id: int
+    book_id: Optional[int] = None
 
 
 class Review(ReviewBase):
@@ -95,12 +93,11 @@ class Review(ReviewBase):
     is_approved: bool
     created_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BookSearch(BaseModel):
-    query: str
+    query: str = ""
     category_id: Optional[int] = None
     author_id: Optional[int] = None
     language: Optional[str] = None

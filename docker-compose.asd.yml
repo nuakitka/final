@@ -1,22 +1,25 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   db:
     image: postgres:15-alpine
     container_name: library_db
     environment:
-      POSTGRES_DB: library_db
-      POSTGRES_USER: library_user
-      POSTGRES_PASSWORD: library_password
+      POSTGRES_DB: ${POSTGRES_DB:-library_db}
+      POSTGRES_USER: ${POSTGRES_USER:-library_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-library_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
     networks:
       - library_network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-library_user} -d ${POSTGRES_DB:-library_db}"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
 
   # Redis for caching (optional)
   redis:
@@ -35,32 +38,30 @@ services:
     build: .
     container_name: library_api
     environment:
-      DATABASE_URL: postgresql://library_user:library_password@db:5432/library_db
-      SECRET_KEY: your-secret-key-change-in-production
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      DEBUG: false
+      DATABASE_URL: postgresql://${POSTGRES_USER:-library_user}:${POSTGRES_PASSWORD:-library_password}@db:5432/${POSTGRES_DB:-library_db}
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      DEBUG: ${DEBUG:-false}
       REDIS_URL: redis://redis:6379
-      TIMEZONE: GMT
-      TZ: GMT
+      TIMEZONE: ${TIMEZONE:-GMT}
+      TZ: ${TZ:-GMT}
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     ports:
       - "80:8000"
       - "443:8001"
     volumes:
-      - ./app:/app/app
-      - ./alembic:/app/alembic
-      - ./alembic.ini:/app/alembic.ini
+      - .:/app
       - ./templates:/app/templates
       - ./static:/app/static
     networks:
       - library_network
     restart: unless-stopped
-    command: >
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
   postgres_data:

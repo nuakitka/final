@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import Optional
 from app.models import get_db
 from app.schemas.user import UserCreate, UserLogin, Token, User
-from app.services.auth import create_user, login_user, get_user_by_username, get_user_by_email
+from app.services.auth import create_user, get_user_by_username, get_user_by_email
 from app.core.security import verify_token, create_access_token, verify_password
 
 router = APIRouter(tags=["authentication"])
@@ -70,8 +70,11 @@ def read_users_me(current_user: User = Depends(get_current_active_user)):
         "id": current_user.id,
         "username": current_user.username,
         "email": current_user.email,
+        "full_name": current_user.full_name,
         "role": current_user.role,
-        "is_active": current_user.is_active
+        "is_active": current_user.is_active,
+        "is_verified": current_user.is_verified,
+        "created_at": current_user.created_at,
     }
 
 @router.post("/login", response_model=Token)

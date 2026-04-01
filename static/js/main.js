@@ -6,21 +6,15 @@ let authToken = null;
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    // Check if user is logged in
     checkAuthStatus();
-    
-    // Initialize tooltips
     initializeTooltips();
-    
-    // Initialize search functionality
     initializeSearch();
-    
-    // Load dynamic content on home page
+
     if (window.location.pathname === '/' || window.location.pathname === '/index') {
         loadHomePageContent();
     }
+});
 
-// Load active reading sessions for home page
 async function loadActiveBooksHome() {
     const section = document.getElementById('activeBooksSection');
     const container = document.getElementById('activeBooksList');
@@ -72,7 +66,6 @@ async function loadActiveBooksHome() {
     }
 }
 
-// Load recently read books for home page
 async function loadRecentBooksHome() {
     const section = document.getElementById('recentBooksSection');
     const container = document.getElementById('recentBooksList');
@@ -143,22 +136,42 @@ async function loadRecentBooksHome() {
         section.style.display = 'none';
     }
 }
-});
 
 // Check authentication status
 function checkAuthStatus() {
-    authToken = localStorage.getItem('token');
+    authToken = localStorage.getItem('access_token') || localStorage.getItem('token');
+    const bodyUser = getCurrentUserFromPage();
     const userStr = localStorage.getItem('user');
-    
-    if (authToken && userStr) {
+
+    if (bodyUser) {
+        currentUser = bodyUser;
+        updateNavigationForLoggedInUser();
+        return;
+    }
+
+    if (userStr) {
         try {
             currentUser = JSON.parse(userStr);
             updateNavigationForLoggedInUser();
         } catch (e) {
             console.error('Error parsing user data:', e);
-            logout();
+            localStorage.removeItem('user');
         }
     }
+}
+
+function getCurrentUserFromPage() {
+    const body = document.body;
+    if (!body || body.getAttribute('data-user-authenticated') !== 'true') {
+        return null;
+    }
+
+    return {
+        username: body.getAttribute('data-user-username') || '',
+        role: body.getAttribute('data-user-role') || '',
+        full_name: body.getAttribute('data-user-full-name') || '',
+        created_at: body.getAttribute('data-user-created-at') || '',
+    };
 }
 
 // Update navigation for logged-in user
@@ -179,12 +192,25 @@ function updateNavigationForLoggedInUser() {
 }
 
 // Logout function
-function logout() {
+async function logout(redirect = true) {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+    } catch (error) {
+        console.error('Logout request failed:', error);
+    }
+
     localStorage.removeItem('token');
+    localStorage.removeItem('access_token');
     localStorage.removeItem('user');
     currentUser = null;
     authToken = null;
-    window.location.href = '/';
+
+    if (redirect) {
+        window.location.href = '/';
+    }
 }
 
 // Initialize Bootstrap tooltips
@@ -417,6 +443,10 @@ function createBookCard(book) {
 
 // Toggle favorite book
 async function toggleFavorite(bookId, source) {
+    if (!currentUser) {
+        window.location.href = '/login';
+        throw new Error('Unauthorized');
+    }
 
     let button = null;
     if (source instanceof HTMLElement) {
@@ -540,7 +570,7 @@ async function apiCall(url, options = {}) {
         const response = await fetch(url, finalOptions);
         
         if (response.status === 401) {
-            logout();
+            await logout();
             throw new Error('Unauthorized');
         }
         

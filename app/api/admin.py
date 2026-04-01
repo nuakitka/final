@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 from pathlib import Path
@@ -59,8 +59,8 @@ def admin_get_stats(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """Получить статистику системы (админ)"""
-    check_admin(request)
+    """Получить статистику системы (админ/библиотекарь)"""
+    check_admin_or_librarian(request)
     
     total_users = db.query(UserModel).count()
     total_books = db.query(BookModel).filter(BookModel.is_active == True).count()
@@ -176,7 +176,7 @@ def admin_delete_author(
 def admin_create_category(
     request: Request,
     name: str,
-    description: str | None = None,
+    description: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """Создать категорию (админ)."""
@@ -222,11 +222,11 @@ async def admin_upload_book_file(
     request: Request,
     file: UploadFile = File(...)
 ):
-    """Загрузить файл книги (PDF/EPUB и т.п.). Только для админа.
+    """Загрузить файл книги (PDF/EPUB и т.п.). Только для staff.
 
     Возвращает URL, который можно сохранить в поле file_url книги.
     """
-    check_admin(request)
+    check_admin_or_librarian(request)
 
     books_dir = Path("static") / "books"
     books_dir.mkdir(parents=True, exist_ok=True)
@@ -246,11 +246,11 @@ async def admin_upload_cover(
     request: Request,
     file: UploadFile = File(...)
 ):
-    """Загрузить обложку книги (изображение). Только для админа.
+    """Загрузить обложку книги (изображение). Только для staff.
 
     Возвращает URL, который можно сохранить в поле cover_url книги.
     """
-    check_admin(request)
+    check_admin_or_librarian(request)
 
     covers_dir = Path("static") / "covers"
     covers_dir.mkdir(parents=True, exist_ok=True)
